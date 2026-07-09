@@ -1,0 +1,3 @@
+com/telemind/analytics/TeleMindApplicationTests.class
+com/telemind/analytics/query/QueryExecutorServiceTest.class
+com/telemind/analytics/security/SqlValidatorServiceTest.class

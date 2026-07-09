@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.telemind.analytics.TeleMindApplicationTests
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.997 s -- in com.telemind.analytics.TeleMindApplicationTests

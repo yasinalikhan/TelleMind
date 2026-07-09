@@ -1,0 +1,286 @@
+<!-- Main Dashboard Page Wrapper -->
+<div class="min-h-screen bg-[#070b19] text-slate-100 flex flex-col font-sans antialiased overflow-x-hidden relative">
+  <!-- Glowing Background Accents -->
+  <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none"></div>
+  <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none"></div>
+
+  <!-- 1. LOGIN SCREEN (If not authenticated) -->
+  @if (!dashboardService.token()) {
+    <div class="flex-1 flex items-center justify-center p-6 relative z-10">
+      <div class="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900/60 p-8 shadow-2xl backdrop-blur-lg">
+        <!-- Logo and Heading -->
+        <div class="text-center mb-8">
+          <div class="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-gradient-to-tr from-indigo-500 to-cyan-500 text-white shadow-lg shadow-indigo-500/25 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 0 0 2.25-2.25V6.75a2.25 2.25 0 0 0-2.25-2.25H6.75A2.25 2.25 0 0 0 4.5 6.75v10.5a2.25 2.25 0 0 0 2.25 2.25Zm.75-12h9v9h-9v-9Z" />
+            </svg>
+          </div>
+          <h2 class="text-2xl font-extrabold tracking-tight text-white">TeleMind Analytics</h2>
+          <p class="text-slate-400 text-sm mt-1.5">Enterprise Multi-Tenant AI Decision Portal</p>
+        </div>
+
+        @if (dashboardService.error()) {
+          <div class="mb-4 rounded-xl bg-rose-500/10 border border-rose-500/20 p-3.5 text-xs text-rose-400 font-medium">
+            {{ dashboardService.error() }}
+          </div>
+        }
+
+        <!-- Form fields -->
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Select Tenant Account</label>
+            <div class="grid grid-cols-2 gap-3">
+              <button type="button" 
+                      [class.border-indigo-500]="selectedTenant() === 'tenant_1'"
+                      [class.bg-indigo-500/10]="selectedTenant() === 'tenant_1'"
+                      (click)="selectedTenant.set('tenant_1')"
+                      class="flex flex-col items-center justify-center p-3 rounded-xl border border-white/10 hover:border-indigo-500/50 bg-slate-950/20 transition-all text-left">
+                <span class="text-xs font-bold text-white">Afghan Wireless</span>
+                <span class="text-[9px] text-slate-500 mt-0.5">Tenant 1 Account</span>
+              </button>
+              <button type="button" 
+                      [class.border-indigo-500]="selectedTenant() === 'tenant_2'"
+                      [class.bg-indigo-500/10]="selectedTenant() === 'tenant_2'"
+                      (click)="selectedTenant.set('tenant_2')"
+                      class="flex flex-col items-center justify-center p-3 rounded-xl border border-white/10 hover:border-indigo-500/50 bg-slate-950/20 transition-all text-left">
+                <span class="text-xs font-bold text-white">Roshan Telecom</span>
+                <span class="text-[9px] text-slate-500 mt-0.5">Tenant 2 Account</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Username</label>
+            <input type="text" 
+                   [value]="username()"
+                   (input)="username.set($any($event.target).value)"
+                   class="w-full rounded-xl border border-white/10 bg-slate-950/40 px-4 py-2.5 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Password</label>
+            <input type="password" 
+                   [value]="password()"
+                   (input)="password.set($any($event.target).value)"
+                   class="w-full rounded-xl border border-white/10 bg-slate-950/40 px-4 py-2.5 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none" />
+          </div>
+
+          <button (click)="onLogin()" 
+                  [disabled]="dashboardService.loading()"
+                  class="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold py-3 px-4 shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-2">
+            @if (dashboardService.loading()) {
+              <div class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+              Authenticating...
+            } @else {
+              Access Console
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- 2. AUTHENTICATED SaaS CONSOLE -->
+  @if (dashboardService.token()) {
+    <div class="flex-1 flex overflow-hidden relative z-10">
+      
+      <!-- Side Navigation Panel -->
+      <aside class="w-80 border-r border-white/10 bg-[#0b1126]/85 backdrop-blur-md flex flex-col justify-between p-6">
+        <div class="space-y-6">
+          
+          <!-- Brand Header -->
+          <div class="flex items-center gap-3">
+            <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-500 text-white flex items-center justify-center shadow-md">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 0 0 2.25-2.25V6.75a2.25 2.25 0 0 0-2.25-2.25H6.75A2.25 2.25 0 0 0 4.5 6.75v10.5a2.25 2.25 0 0 0 2.25 2.25Zm.75-12h9v9h-9v-9Z" />
+              </svg>
+            </div>
+            <div>
+              <h1 class="text-base font-bold text-white">TeleMind</h1>
+              <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">AI Operations Center</p>
+            </div>
+          </div>
+
+          <!-- Active Tenant Display / Toggle -->
+          <div class="rounded-xl border border-white/5 bg-slate-950/40 p-3 flex items-center justify-between">
+            <div>
+              <p class="text-[9px] font-semibold text-slate-500 uppercase">Current Account</p>
+              <h3 class="text-xs font-bold text-white">
+                {{ selectedTenant() === 'tenant_1' ? 'Afghan Wireless' : 'Roshan Telecom' }}
+              </h3>
+            </div>
+            <div class="flex gap-1.5">
+              <button (click)="switchTenant('tenant_1')" 
+                      [class.bg-indigo-600]="selectedTenant() === 'tenant_1'"
+                      [class.text-white]="selectedTenant() === 'tenant_1'"
+                      class="h-6 w-8 rounded text-[9px] font-bold bg-slate-900 border border-white/10 hover:border-indigo-500/50 text-slate-400 transition-all flex items-center justify-center">
+                T1
+              </button>
+              <button (click)="switchTenant('tenant_2')" 
+                      [class.bg-indigo-600]="selectedTenant() === 'tenant_2'"
+                      [class.text-white]="selectedTenant() === 'tenant_2'"
+                      class="h-6 w-8 rounded text-[9px] font-bold bg-slate-900 border border-white/10 hover:border-indigo-500/50 text-slate-400 transition-all flex items-center justify-center">
+                T2
+              </button>
+            </div>
+          </div>
+
+          <!-- AI Natural Language Prompt Console -->
+          <div class="space-y-3">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">AI Analytics Engine</h2>
+            
+            <div class="relative">
+              <textarea [(ngModel)]="queryText" 
+                        (keydown.enter)="$event.preventDefault(); onSubmitQuery()"
+                        placeholder="Ask a question (e.g. Show revenue trend)" 
+                        rows="3"
+                        class="w-full rounded-xl border border-white/10 bg-slate-950/40 p-3.5 text-xs text-slate-200 placeholder-slate-500 focus:border-indigo-500 focus:outline-none resize-none"></textarea>
+            </div>
+
+            <button (click)="onSubmitQuery()" 
+                    [disabled]="dashboardService.loading()"
+                    class="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-3 text-xs shadow-md transition-all flex items-center justify-center gap-1.5">
+              @if (dashboardService.loading()) {
+                <div class="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                Analyzing Data...
+              } @else {
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 21l8.982-11.795H14l1.37-6.205L6.388 14.85H9.81Z" />
+                </svg>
+                Execute AI Pipeline
+              }
+            </button>
+          </div>
+
+          <!-- Suggestions Chips -->
+          <div class="space-y-2">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Suggestive Templates</h2>
+            <div class="flex flex-col gap-2">
+              @for (suggest of suggestions; track suggest) {
+                <button (click)="runQuery(suggest)" 
+                        [disabled]="dashboardService.loading()"
+                        class="text-left text-[11px] p-2.5 rounded-lg border border-white/5 bg-slate-950/20 hover:border-indigo-500/40 hover:bg-slate-950/40 text-slate-300 font-medium transition-all duration-200">
+                  {{ suggest }}
+                </button>
+              }
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Footer Profile logout -->
+        <div class="border-t border-white/5 pt-4 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="h-8 w-8 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-xs font-bold text-white">
+              AD
+            </div>
+            <div>
+              <p class="text-xs font-bold text-white">System Admin</p>
+              <p class="text-[9px] text-slate-500 font-semibold uppercase">Super Administrator</p>
+            </div>
+          </div>
+          <button (click)="onLogout()" 
+                  class="rounded-lg bg-slate-950/60 hover:bg-slate-950 text-slate-400 hover:text-white p-2 border border-white/5 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
+            </svg>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Panel Viewport -->
+      <main class="flex-1 flex flex-col overflow-y-auto p-8 relative">
+        
+        <!-- Dashboard Top Header Bar -->
+        <header class="mb-8 flex items-center justify-between">
+          <div>
+            @if (dashboardService.activePage()) {
+              <h2 class="text-2xl font-extrabold text-white tracking-tight">
+                {{ dashboardService.activePage()!.page.title }}
+              </h2>
+            } @else {
+              <h2 class="text-2xl font-extrabold text-white tracking-tight">AI Dynamic Console</h2>
+            }
+            <p class="text-xs text-slate-400 mt-1">Tenant Database Isolation: Strict RLS enforced</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-400 border border-indigo-500/20">
+              Active Session: {{ selectedTenant() === 'tenant_1' ? 'AWCC-Portal' : 'Roshan-Portal' }}
+            </span>
+          </div>
+        </header>
+
+        <!-- Dynamic Content Engine -->
+        <div class="flex-1 flex flex-col justify-start">
+          
+          <!-- A: LOADING STATE -->
+          @if (dashboardService.loading()) {
+            <div class="space-y-6">
+              <div class="h-32 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse flex items-center justify-center">
+                <span class="text-xs text-slate-500 uppercase tracking-widest">Compiling Query Results...</span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="h-64 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse"></div>
+                <div class="h-64 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse"></div>
+              </div>
+            </div>
+          }
+
+          <!-- B: ERROR STATE -->
+          @if (dashboardService.error() && !dashboardService.loading()) {
+            <div class="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6 shadow-md flex gap-4 items-start">
+              <div class="rounded-lg bg-rose-500/10 p-2 text-rose-400">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                </svg>
+              </div>
+              <div>
+                <h3 class="font-bold text-white text-base">Execution Mismatch</h3>
+                <p class="text-xs text-slate-400 mt-1">{{ dashboardService.error() }}</p>
+                <button (click)="runQuery(suggestions[0])" class="mt-4 px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs rounded-lg transition-colors">
+                  Reset Analytics View
+                </button>
+              </div>
+            </div>
+          }
+
+          <!-- C: RENDER DYNAMIC COMPONENTS (If loaded and valid) -->
+          @if (!dashboardService.loading() && !dashboardService.error() && dashboardService.activePage()) {
+            <div class="space-y-6">
+              <!-- Dynamically render dynamic components according to layout (vertical/grid/horizontal) -->
+              <div class="grid grid-cols-1 gap-6" 
+                   [ngClass]="{
+                     'md:grid-cols-1': dashboardService.activePage()!.page.layout === 'vertical',
+                     'md:grid-cols-2': dashboardService.activePage()!.page.layout === 'grid',
+                     'md:grid-cols-3': dashboardService.activePage()!.page.layout === 'horizontal'
+                   }">
+                
+                @for (comp of dashboardService.activePage()!.page.components; track comp.id) {
+                  <!-- Standard *ngComponentOutlet loader -->
+                  <ng-container *ngComponentOutlet="getComponentType(comp.type); inputs: { props: comp.props, events: comp.events }" />
+                }
+              </div>
+            </div>
+          }
+
+          <!-- D: EMPTY STATE (Initial View) -->
+          @if (!dashboardService.loading() && !dashboardService.error() && !dashboardService.activePage()) {
+            <div class="flex-1 flex flex-col items-center justify-center text-center p-8 border border-dashed border-white/10 rounded-2xl bg-slate-950/20">
+              <div class="h-16 w-16 rounded-2xl bg-indigo-500/5 text-indigo-400 flex items-center justify-center mb-4 border border-white/5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
+                </svg>
+              </div>
+              <h3 class="text-lg font-bold text-white">Ask anything about your subscribers, revenue, or traffic</h3>
+              <p class="text-xs text-slate-500 max-w-sm mt-1.5">
+                Our AI Visualization Engine dynamically routes your question to optimal SQL constructs and UI layouts.
+              </p>
+            </div>
+          }
+
+        </div>
+      </main>
+
+    </div>
+  }
+</div>
