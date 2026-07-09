@@ -1,36 +1,73 @@
 package com.telemind.analytics.controller;
 
 import com.telemind.analytics.security.JwtTokenProvider;
+import com.telemind.analytics.security.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final JwtTokenProvider jwtTokenProvider;
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
-    public AuthController(JwtTokenProvider jwtTokenProvider) {
+    private final AuthenticationManager authenticationManager;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
+
+    public AuthController(AuthenticationManager authenticationManager,
+                          JwtTokenProvider jwtTokenProvider,
+                          UserRepository userRepository) {
+        this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.userRepository = userRepository;
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        if (!StringUtils.hasText(request.username()) || !StringUtils.hasText(request.password())) {
-            return ResponseEntity.badRequest().body("Username and password are required.");
-        }
+        try {
+            // Validate input
+            if (request.username() == null || request.username().isBlank() ||
+                request.password() == null || request.password().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Username and password are required"));
+            }
 
-        String tenantId = StringUtils.hasText(request.tenantId()) ? request.tenantId() : "tenant_1";
-        
-        // In a real multi-tenant SaaS application, credentials would be checked from a db table
-        String token = jwtTokenProvider.generateToken(request.username(), tenantId);
-        return ResponseEntity.ok(new LoginResponse(token));
+            // Authenticate using BCrypt via DaoAuthenticationProvider
+            Authentication auth = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.username(), request.password())
+            );
+
+            // Fetch tenant ID from database
+            String tenantId = userRepository.findByUsername(request.username())
+                    .map(u -> u.getTenantId())
+                    .orElse("tenant_1");
+
+            // Generate JWT token
+            String token = jwtTokenProvider.generateToken(request.username(), tenantId);
+            log.info("Login successful for user: {} (tenant: {})", request.username(), tenantId);
+
+            return ResponseEntity.ok(Map.of(
+                "token", token,
+                "username", request.username(),
+                "tenantId", tenantId
+            ));
+
+        } catch (BadCredentialsException e) {
+            log.warn("Failed login attempt for user: {}", request.username());
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid username or password"));
+        } catch (Exception e) {
+            log.error("Login error for user: {}", request.username(), e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Authentication failed"));
+        }
     }
 
-    public record LoginRequest(String username, String password, String tenantId) {}
-    public record LoginResponse(String token) {}
+    public record LoginRequest(String username, String password) {}
 }

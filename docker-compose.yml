@@ -1,29 +1,54 @@
 services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: telemind-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: telemind
+      POSTGRES_USER: yasinalikhan
+      POSTGRES_PASSWORD: yasin_123
+    ports:
+      - "5433:5432"   # Expose on 5433 to avoid conflict with host PostgreSQL 14
+    volumes:
+      - telemind_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yasinalikhan -d telemind"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Spring Boot Backend
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
+    container_name: telemind-backend
+    restart: unless-stopped
+    network_mode: "host"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_API_URL=${OPENAI_API_URL:-https://api.openai.com/v1/chat/completions}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
-    networks:
-      - telemind-net
+      # Connect to DB exposed on host port 5433
+      DB_HOST: localhost
+      DB_PORT: 5433
+      DB_USER: yasinalikhan
+      DB_PASS: yasin_123
+      # Reach Ollama running on host localhost
+      OLLAMA_URL: http://localhost:11434/v1/chat/completions
+    depends_on:
+      db:
+        condition: service_healthy
 
+  # Angular Frontend
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    container_name: telemind-frontend
+    restart: unless-stopped
     ports:
       - "80:80"
     depends_on:
       - backend
-    networks:
-      - telemind-net
 
-networks:
-  telemind-net:
-    driver: bridge
+volumes:
+  telemind_pgdata:
