@@ -15,6 +15,7 @@ export class DashboardService {
   activePage = signal<A2UIResponse | null>(null);
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
+  localFilters = signal<Record<string, string>>({});
 
   login(username: string, password: string, tenant: string): void {
     this.loading.set(true);

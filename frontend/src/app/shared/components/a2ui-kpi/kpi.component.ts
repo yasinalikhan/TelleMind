@@ -33,6 +33,7 @@ import { Component, input } from '@angular/core';
   `
 })
 export class KpiComponent {
+  id = input<string>('');
   props = input.required<any>();
   events = input<any[]>([]);
 

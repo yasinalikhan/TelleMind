@@ -8,6 +8,8 @@ import com.telemind.analytics.query.QueryExecutorService;
 import com.telemind.analytics.query.SqlGeneratorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,15 +26,18 @@ public class AnalyticsController {
     private final QueryExecutorService queryExecutorService;
     private final VisualizationService visualizationService;
     private final ResponseBuilderService responseBuilderService;
+    private final CacheManager cacheManager;
 
     public AnalyticsController(SqlGeneratorService sqlGeneratorService,
                                QueryExecutorService queryExecutorService,
                                VisualizationService visualizationService,
-                               ResponseBuilderService responseBuilderService) {
+                               ResponseBuilderService responseBuilderService,
+                               CacheManager cacheManager) {
         this.sqlGeneratorService = sqlGeneratorService;
         this.queryExecutorService = queryExecutorService;
         this.visualizationService = visualizationService;
         this.responseBuilderService = responseBuilderService;
+        this.cacheManager = cacheManager;
     }
 
     @PostMapping("/query")
@@ -40,10 +45,29 @@ public class AnalyticsController {
         try {
             String question = request.query();
             log.info("Processing natural language query: {}", question);
+            long startTime = System.currentTimeMillis();
 
-            // 1. Generate SQL
-            String sql = sqlGeneratorService.generateSql(question);
-            log.info("Generated SQL: {}", sql);
+            // 1. Check cache for generated SQL (key is question)
+            String sql = null;
+            boolean cacheHit = false;
+            Cache cache = cacheManager.getCache("sqlQueries");
+            if (cache != null) {
+                Cache.ValueWrapper val = cache.get(question);
+                if (val != null) {
+                    sql = (String) val.get();
+                    cacheHit = true;
+                    log.info("SQL query cache hit for: '{}'", question);
+                }
+            }
+
+            if (sql == null) {
+                // Generate SQL (LLM or heuristics)
+                sql = sqlGeneratorService.generateSql(question);
+                log.info("Generated SQL: {}", sql);
+                if (cache != null && sql != null) {
+                    cache.put(question, sql);
+                }
+            }
 
             // 2. Execute SQL query securely
             List<Map<String, Object>> data = queryExecutorService.executeQuery(sql);
@@ -53,8 +77,16 @@ public class AnalyticsController {
             VisualizationDecision decision = visualizationService.decideVisualization(question, data);
             log.info("Visualization decision: Type={}, Title={}", decision.componentType(), decision.title());
 
-            // 4. Build A2UI Response
-            A2UIResponse response = responseBuilderService.buildResponse(decision.title(), decision);
+            long endTime = System.currentTimeMillis();
+            long latencyMs = endTime - startTime;
+
+            // 4. Build A2UI Response with latency and cache metadata
+            Map<String, Object> metadata = Map.of(
+                    "latencyMs", latencyMs,
+                    "cacheHit", cacheHit,
+                    "sql", sql != null ? sql : ""
+            );
+            A2UIResponse response = responseBuilderService.buildResponse(decision.title(), decision, metadata);
 
             return ResponseEntity.ok(response);
         } catch (SecurityException se) {
@@ -71,9 +103,9 @@ public class AnalyticsController {
         try {
             log.info("Processing drill down details for region: {}", region);
             
-            // Query detailed subscriber records for this region
-            String sql = "SELECT msisdn, region, plan, status, recharge_amount, signup_date FROM subscriber WHERE region = '" + region.replace("'", "''") + "'";
-            List<Map<String, Object>> data = queryExecutorService.executeQuery(sql);
+            // Query detailed subscriber records for this region using parameterized SQL
+            String sql = "SELECT msisdn, region, plan, status, recharge_amount, signup_date FROM subscriber WHERE region = ?";
+            List<Map<String, Object>> data = queryExecutorService.executeQuery(sql, region);
             
             // Build visual representation - a table of subscribers
             VisualizationDecision decision = visualizationService.decideVisualization("Show all inactive users", data);

@@ -2,12 +2,14 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Subject } from 'rxjs';
 import { A2UIAction, A2UIResponse } from '../models/a2ui.model';
+import { DashboardService } from './dashboard.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class A2UIActionService {
   private http = inject(HttpClient);
+  private dashboardService = inject(DashboardService);
 
   // Stream of dynamic page changes for dashboard updates
   private pageUpdateSubject = new Subject<A2UIResponse>();
@@ -25,6 +27,10 @@ export class A2UIActionService {
         break;
       case 'FILTER_DATA':
         console.log(`Filtering local data for target ${action.target} with:`, resolvedParam);
+        this.dashboardService.localFilters.update(filters => ({
+          ...filters,
+          [action.target]: resolvedParam
+        }));
         break;
       case 'CALL_API':
         this.executeCallApi(action.target, resolvedParam);

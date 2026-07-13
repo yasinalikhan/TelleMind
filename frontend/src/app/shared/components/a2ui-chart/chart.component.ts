@@ -1,6 +1,7 @@
 import { Component, input, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { A2UIActionService } from '../../../core/services/a2ui-action.service';
+import { DashboardService } from '../../../core/services/dashboard.service';
 
 @Component({
   selector: 'a2ui-chart',
@@ -12,10 +13,22 @@ import { A2UIActionService } from '../../../core/services/a2ui-action.service';
       <div class="mb-6 flex items-center justify-between">
         <div>
           <h3 class="text-lg font-semibold text-white">{{ props().title }}</h3>
-          <p class="text-xs text-slate-400">Interactive Telecom Data Visualization</p>
+          <div class="flex items-center gap-2 mt-1">
+            <p class="text-xs text-slate-400">Interactive Telecom Data Visualization</p>
+            @if (activeFilterValue()) {
+              <span class="inline-flex items-center gap-1 rounded bg-indigo-500/10 px-2 py-0.5 text-[10px] font-semibold text-indigo-400 border border-indigo-500/20">
+                Filtered: {{ activeFilterValue() }}
+                <button (click)="clearLocalFilter()" class="hover:text-white transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3">
+                    <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                  </svg>
+                </button>
+              </span>
+            }
+          </div>
         </div>
         
-        <!-- Legend (Optional) -->
+        <!-- Legend & Export -->
         <div class="flex items-center gap-4 text-xs">
           @if (chartType() === 'line') {
             <div class="flex items-center gap-1.5">
@@ -23,6 +36,12 @@ import { A2UIActionService } from '../../../core/services/a2ui-action.service';
               <span class="text-slate-300">Metric Value</span>
             </div>
           }
+          
+          <button (click)="exportLocalData()" class="rounded-lg bg-slate-800/40 p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-all duration-200" title="Export CSV Data">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -180,10 +199,12 @@ import { A2UIActionService } from '../../../core/services/a2ui-action.service';
   `
 })
 export class ChartComponent {
+  id = input<string>('');
   props = input.required<any>();
   events = input<any[]>([]);
   
   private actionService = inject(A2UIActionService);
+  private dashboardService = inject(DashboardService);
  
   // Resolved Chart Type
   chartType = computed(() => {
@@ -200,10 +221,45 @@ export class ChartComponent {
   clearTooltip(): void {
     this.tooltip.set({ show: false, title: '', value: '', x: 0, y: 0 });
   }
+
+  // Active filter values and actions
+  activeFilterValue = computed(() => {
+    return this.dashboardService.localFilters()[this.id()];
+  });
+
+  clearLocalFilter(): void {
+    this.dashboardService.localFilters.update(filters => {
+      const copy = { ...filters };
+      delete copy[this.id()];
+      return copy;
+    });
+  }
+
+  exportLocalData(): void {
+    const data = this.filteredData();
+    this.actionService.handleAction({
+      type: 'EXPORT_DATA',
+      target: '',
+      parameter: JSON.stringify(data)
+    });
+  }
+
+  // Local Reactive Filtered Data
+  filteredData = computed(() => {
+    const rawData = this.props().data || [];
+    const filterVal = this.activeFilterValue();
+    if (!filterVal) return rawData;
+
+    return rawData.filter((row: any) => {
+      return Object.values(row).some(val => 
+        String(val).toLowerCase() === filterVal.toLowerCase()
+      );
+    });
+  });
  
   // 1. Line Chart computations
   linePoints = computed(() => {
-    const data = this.props().data || [];
+    const data = this.filteredData() || [];
     if (data.length === 0) return [];
     
     const xAxisKey = this.props().xAxis || 'date';
@@ -244,7 +300,7 @@ export class ChartComponent {
  
   // 2. Bar Chart computations
   barData = computed(() => {
-    const data = this.props().data || [];
+    const data = this.filteredData() || [];
     if (data.length === 0) return [];
  
     const xAxisKey = this.props().xAxis || 'region';
@@ -271,7 +327,7 @@ export class ChartComponent {
  
   // 3. Pie Chart computations
   pieSlices = computed(() => {
-    const data = this.props().data || [];
+    const data = this.filteredData() || [];
     if (data.length === 0) return [];
  
     const labelKey = this.props().labelKey || 'plan';
@@ -319,19 +375,19 @@ export class ChartComponent {
  
   // 4. Heatmap computations
   heatmapRows = computed(() => {
-    const data = this.props().data || [];
+    const data = this.filteredData() || [];
     const yAxisKey = this.props().yAxis || 'region';
     return Array.from(new Set(data.map((d: any) => String(d[yAxisKey]))));
   });
  
   heatmapCols = computed(() => {
-    const data = this.props().data || [];
+    const data = this.filteredData() || [];
     const xAxisKey = this.props().xAxis || 'tower';
     return Array.from(new Set(data.map((d: any) => String(d[xAxisKey]))));
   });
  
   getHeatmapCell(row: any, col: any): { value: number, valueShort: string, color: string } {
-    const data = this.props().data || [];
+    const data = this.filteredData() || [];
     const xAxisKey = this.props().xAxis || 'tower';
     const yAxisKey = this.props().yAxis || 'region';
     const valKey = this.props().value || 'data_mb';

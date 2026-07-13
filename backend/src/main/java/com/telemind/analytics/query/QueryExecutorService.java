@@ -24,7 +24,7 @@ public class QueryExecutorService {
         this.sqlValidatorService = sqlValidatorService;
     }
 
-    public List<Map<String, Object>> executeQuery(String rawSql) {
+    public List<Map<String, Object>> executeQuery(String rawSql, Object... args) {
         // 1. Validate SQL to prevent SQL injection and unsafe commands
         sqlValidatorService.validateQuery(rawSql);
 
@@ -37,6 +37,9 @@ public class QueryExecutorService {
         log.info("Secured SQL: {}", securedSql);
 
         // 4. Run query
+        if (args != null && args.length > 0) {
+            return jdbcTemplate.queryForList(securedSql, args);
+        }
         return jdbcTemplate.queryForList(securedSql);
     }
 

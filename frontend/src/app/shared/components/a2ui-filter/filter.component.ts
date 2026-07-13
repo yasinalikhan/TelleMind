@@ -49,6 +49,7 @@ import { A2UIActionService } from '../../../core/services/a2ui-action.service';
   `
 })
 export class FilterComponent {
+  id = input<string>('');
   props = input.required<any>();
   events = input<any[]>([]);
 

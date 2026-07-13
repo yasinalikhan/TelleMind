@@ -2,6 +2,7 @@ export interface A2UIResponse {
   version: string;
   page: A2UIPage;
   actions: A2UIAction[];
+  metadata?: any;
 }
 
 export interface A2UIPage {

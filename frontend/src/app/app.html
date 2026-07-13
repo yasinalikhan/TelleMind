@@ -210,6 +210,41 @@
           </div>
         </header>
 
+        <!-- Real-Time Caching & Execution Metrics -->
+        @if (dashboardService.activePage()?.metadata; as meta) {
+          <div class="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-white/5 bg-slate-900/40 p-3 text-xs">
+            <div class="flex items-center gap-1.5 text-slate-400">
+              <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
+              <span>Pipeline Latency:</span>
+              <span class="font-semibold text-white">{{ meta.latencyMs }}ms</span>
+            </div>
+            <div class="h-4 w-px bg-white/10"></div>
+            <div class="flex items-center gap-1.5 text-slate-400">
+              <span class="h-2 w-2 rounded-full" [ngClass]="meta.cacheHit ? 'bg-emerald-500' : 'bg-amber-500'"></span>
+              <span>SQL Cache:</span>
+              <span class="font-semibold" [ngClass]="meta.cacheHit ? 'text-emerald-400' : 'text-amber-400'">
+                {{ meta.cacheHit ? 'HIT (Instant)' : 'MISS (Generated)' }}
+              </span>
+            </div>
+            @if (meta.sql) {
+              <div class="h-4 w-px bg-white/10"></div>
+              <button (click)="toggleSqlView()" class="text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+                </svg>
+                {{ showSql() ? 'Hide Query' : 'View Generated SQL' }}
+              </button>
+            @}
+          </div>
+
+          @if (showSql() && meta.sql) {
+            <div class="mb-6 rounded-xl border border-white/10 bg-slate-950/80 p-4 font-mono text-[11px] text-slate-300 overflow-x-auto shadow-inner relative">
+              <div class="absolute top-2 right-2 text-[9px] uppercase tracking-wider text-slate-500 font-sans font-bold">Executed SQL</div>
+              <code class="block whitespace-pre-wrap">{{ meta.sql }}</code>
+            </div>
+          }
+        }
+
         <!-- Dynamic Content Engine -->
         <div class="flex-1 flex flex-col justify-start">
           
@@ -247,17 +282,12 @@
           <!-- C: RENDER DYNAMIC COMPONENTS (If loaded and valid) -->
           @if (!dashboardService.loading() && !dashboardService.error() && dashboardService.activePage()) {
             <div class="space-y-6">
-              <!-- Dynamically render dynamic components according to layout (vertical/grid/horizontal) -->
-              <div class="grid grid-cols-1 gap-6" 
-                   [ngClass]="{
-                     'md:grid-cols-1': dashboardService.activePage()!.page.layout === 'vertical',
-                     'md:grid-cols-2': dashboardService.activePage()!.page.layout === 'grid',
-                     'md:grid-cols-3': dashboardService.activePage()!.page.layout === 'horizontal'
-                   }">
-                
-                @for (comp of dashboardService.activePage()!.page.components; track comp.id) {
-                  <!-- Standard *ngComponentOutlet loader -->
-                  <ng-container *ngComponentOutlet="getComponentType(comp.type); inputs: { props: comp.props, events: comp.events }" />
+              <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                @for (comp of dashboardService.activePage()!.page.components; track comp.id; let count = $count) {
+                  <div [ngClass]="count === 1 ? 'lg:col-span-8 lg:col-start-3' : (comp.type === 'map' ? 'lg:col-span-7' : 'lg:col-span-5')">
+                    <!-- Standard *ngComponentOutlet loader -->
+                    <ng-container *ngComponentOutlet="getComponentType(comp.type); inputs: { id: comp.id, props: comp.props, events: comp.events }" />
+                  </div>
                 }
               </div>
             </div>

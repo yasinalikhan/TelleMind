@@ -25,6 +25,7 @@ export class App implements OnInit {
   username = signal('admin');
   password = signal('admin123');
   selectedTenant = signal(localStorage.getItem('tenantId') || 'tenant_1');
+  showSql = signal(false);
 
   suggestions = [
     'Show revenue trend for last 30 days',
@@ -73,8 +74,14 @@ export class App implements OnInit {
     this.runQuery(q);
   }
 
+  toggleSqlView() {
+    this.showSql.update(v => !v);
+  }
+
   runQuery(text: string) {
     this.queryText.set(text);
+    this.showSql.set(false);
+    this.dashboardService.localFilters.set({});
     this.dashboardService.loading.set(true);
     this.dashboardService.error.set(null);
 

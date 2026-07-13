@@ -1,7 +1,0 @@
-feat: migrate to PostgreSQL, add Flyway, Spring Security BCrypt, and improve Ollama SQL parsing
-
-- DATABASE: Migrated from H2 in-memory database to PostgreSQL.
-- SCHEMAS: Added Flyway migrations (`V1__create_schema.sql`, `V2__seed_data.sql`) with custom seeding of multi-tenant user database and indexes.
-- AUTHENTICATION: Replaced mock login logic with a real Spring Security `DaoAuthenticationProvider`, custom `UserDetailsService`, and secure BCrypt hashed passwords.
-- AI PIPELINE: Updated `SqlGeneratorService` to query local Ollama (llama3), using Jackson `ObjectMapper` instead of custom string parsing to correctly handle Unicode/escaped character sequences (like resolving `\u003e` to `>` and `\u003c` to `<`).
-- DEPLOYMENT: Configured `docker-compose.yml` to spin up PostgreSQL alongside the web app, enabling host networking on the backend container to connect seamlessly with the local Ollama instance on the host machine.
