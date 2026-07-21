@@ -7,6 +7,7 @@ import { A2UIRegistryService } from './core/services/a2ui-registry.service';
 import { A2UIValidationService } from './core/services/a2ui-validation.service';
 import { A2UIActionService } from './core/services/a2ui-action.service';
 import { A2UIResponse, A2UIComponent } from './core/models/a2ui.model';
+import { DatasetService, CustomDataset } from './core/services/dataset.service';
 
 @Component({
   selector: 'app-root',
@@ -21,6 +22,7 @@ export class App implements OnInit {
   private readonly registry = inject(A2UIRegistryService);
   private readonly validator = inject(A2UIValidationService);
   private readonly actionService = inject(A2UIActionService);
+  private readonly datasetService = inject(DatasetService);
 
   constructor() {
     effect(() => {
@@ -41,6 +43,20 @@ export class App implements OnInit {
   selectedTenant = signal(localStorage.getItem('tenantId') || 'tenant_1');
   showSql = signal(false);
   newDashboardName = signal('');
+
+  // Sidebar collapsible section states
+  workspaceOpen = signal(true);
+  datasetsOpen = signal(true);
+  aiOpen = signal(true);
+  templatesOpen = signal(false);
+  showNewWorkspace = signal(false);
+
+  // Custom Datasets signals
+  datasets = signal<CustomDataset[]>([]);
+  activePreviewDataset = signal<CustomDataset | null>(null);
+  activePreviewSchema = signal<Record<string, string>>({});
+  previewRows = signal<any[]>([]);
+  previewColumns = signal<string[]>([]);
 
   // Keeps track of widgets generated from the last AI natural language query
   lastQueryResponse = signal<A2UIResponse | null>(null);
@@ -70,6 +86,7 @@ export class App implements OnInit {
 
     if (this.dashboardService.token()) {
       this.dashboardService.loadDashboards();
+      this.loadDatasets();
       this.runQuery(this.suggestions[0]);
     }
   }
@@ -83,6 +100,7 @@ export class App implements OnInit {
     setTimeout(() => {
       if (this.dashboardService.token()) {
         this.dashboardService.loadDashboards();
+        this.loadDatasets();
         this.runQuery(this.suggestions[0]);
       }
     }, 1000);
@@ -90,6 +108,8 @@ export class App implements OnInit {
 
   onLogout() {
     this.dashboardService.logout();
+    this.datasets.set([]);
+    this.activePreviewDataset.set(null);
   }
 
   onSubmitQuery() {
@@ -136,7 +156,87 @@ export class App implements OnInit {
     this.dashboardService.tenantId.set(tenant);
     this.dashboardService.activeDashboard.set(null);
     this.dashboardService.loadDashboards();
+    this.loadDatasets();
     this.runQuery(this.queryText() || this.suggestions[0]);
+  }
+
+  loadDatasets() {
+    this.datasetService.getDatasets().subscribe({
+      next: (data) => this.datasets.set(data),
+      error: (err) => console.error('Failed to load datasets', err)
+    });
+  }
+
+  onCsvUpload(event: any) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    this.dashboardService.loading.set(true);
+    this.datasetService.uploadDataset(file).subscribe({
+      next: (ds) => {
+        this.dashboardService.loading.set(false);
+        this.loadDatasets();
+        event.target.value = '';
+      },
+      error: (err) => {
+        this.dashboardService.loading.set(false);
+        console.error('Upload failed:', err);
+        this.dashboardService.error.set(err.error?.error || 'CSV upload failed.');
+        event.target.value = '';
+      }
+    });
+  }
+
+  previewDataset(ds: CustomDataset) {
+    this.datasetService.getDatasetPreview(ds.id).subscribe({
+      next: (res) => {
+        this.activePreviewDataset.set(res.dataset);
+        this.previewRows.set(res.preview);
+        
+        try {
+          this.activePreviewSchema.set(JSON.parse(res.dataset.schemaJson));
+        } catch (e) {
+          this.activePreviewSchema.set({});
+        }
+
+        if (res.preview.length > 0) {
+          this.previewColumns.set(Object.keys(res.preview[0]));
+        } else {
+          try {
+            const schema = JSON.parse(res.dataset.schemaJson);
+            this.previewColumns.set(Object.keys(schema));
+          } catch (e) {
+            this.previewColumns.set([]);
+          }
+        }
+      },
+      error: (err) => {
+        console.error('Failed to get preview', err);
+        this.dashboardService.error.set(err.error?.error || 'Failed to load dataset preview.');
+      }
+    });
+  }
+
+  deleteDataset(ds: CustomDataset, event: MouseEvent) {
+    event.stopPropagation();
+    if (!confirm(`Are you sure you want to delete dataset "${ds.tableName}"?`)) return;
+
+    this.datasetService.deleteDataset(ds.id).subscribe({
+      next: () => {
+        if (this.activePreviewDataset()?.id === ds.id) {
+          this.activePreviewDataset.set(null);
+        }
+        this.loadDatasets();
+      },
+      error: (err) => {
+        console.error('Deletion failed:', err);
+        this.dashboardService.error.set(err.error?.error || 'Dataset deletion failed.');
+      }
+    });
+  }
+
+  closePreview() {
+    this.activePreviewDataset.set(null);
   }
 
   // Workspace Actions
@@ -230,12 +330,20 @@ export class App implements OnInit {
   // Widget Layout Modification Actions
   addToDashboard() {
     const activeDb = this.dashboardService.activeDashboard();
-    const activePage = this.dashboardService.activePage();
     const lastRes = this.lastQueryResponse();
 
-    if (!activeDb || !activePage || !lastRes) return;
+    if (!activeDb || !lastRes) return;
 
-    const currentComponents = [...activePage.page.components];
+    // Parse existing components from active workspace layoutConfig
+    let existingComponents: A2UIComponent[] = [];
+    if (activeDb.layoutConfig) {
+      try {
+        existingComponents = JSON.parse(activeDb.layoutConfig) as A2UIComponent[];
+      } catch (e) {
+        console.error('Failed to parse active dashboard layout config:', e);
+      }
+    }
+
     const newComponents = lastRes.page.components.map(comp => {
       // Deep copy component and add default colSpan if not present
       const copy = JSON.parse(JSON.stringify(comp));
@@ -249,8 +357,18 @@ export class App implements OnInit {
       return copy;
     });
 
-    activePage.page.components = [...currentComponents, ...newComponents];
-    this.dashboardService.activePage.set({ ...activePage });
+    // Create a new page response combining existing components and the new components
+    const updatedPage: A2UIResponse = {
+      version: '1.0.0',
+      page: {
+        title: activeDb.name,
+        layout: 'grid',
+        components: [...existingComponents, ...newComponents]
+      },
+      actions: []
+    };
+
+    this.dashboardService.activePage.set(updatedPage);
     // Automatically turn on edit mode so they see controls and remember to save
     this.dashboardService.editMode.set(true);
     // Clear last response so button disappears

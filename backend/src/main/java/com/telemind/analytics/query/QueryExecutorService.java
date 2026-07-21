@@ -51,6 +51,15 @@ public class QueryExecutorService {
         String trimmed = sql.trim();
         String lower = trimmed.toLowerCase();
 
+        // Replace any LLM-emitted placeholder patterns with the real tenant value first
+        trimmed = trimmed
+                .replaceAll("<tenant_id>", "'" + tenantId + "'")
+                .replaceAll("\\{tenant_id\\}", "'" + tenantId + "'")
+                .replaceAll(":tenant_id", "'" + tenantId + "'")
+                .replaceAll("'<[^>]*tenant[^>]*>'", "'" + tenantId + "'")
+                .replaceAll("<[^>]*tenant[^>]*>", "'" + tenantId + "'");
+        lower = trimmed.toLowerCase();
+
         // If the query already has tenant_id checked, don't double inject
         if (lower.contains("tenant_id")) {
             return trimmed;

@@ -85,136 +85,282 @@
     <div class="flex-1 flex overflow-hidden relative z-10">
       
       <!-- Side Navigation Panel -->
-      <aside class="w-80 border-r border-white/10 bg-[#0b1126]/85 backdrop-blur-md flex flex-col justify-between p-6">
-        <div class="space-y-6">
-          
-          <!-- Brand Header -->
+      <aside class="w-72 border-r border-white/[0.07] bg-[#0d1228] flex flex-col overflow-hidden">
+
+        <!-- Fixed Sidebar Header -->
+        <div class="flex-none px-5 pt-5 pb-4 border-b border-white/[0.06]">
           <div class="flex items-center gap-3">
-            <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-500 text-white flex items-center justify-center shadow-md">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
+            <div class="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 text-white">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 0 0 2.25-2.25V6.75a2.25 2.25 0 0 0-2.25-2.25H6.75A2.25 2.25 0 0 0 4.5 6.75v10.5a2.25 2.25 0 0 0 2.25 2.25Zm.75-12h9v9h-9v-9Z" />
               </svg>
             </div>
             <div>
-              <h1 class="text-base font-bold text-white">TeleMind</h1>
-              <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">AI Operations Center</p>
+              <h1 class="text-sm font-bold text-white tracking-tight">TeleMind</h1>
+              <p class="text-[10px] text-slate-500 font-medium uppercase tracking-widest">AI Operations Center</p>
             </div>
           </div>
-
-          <!-- Active Tenant Display / Toggle -->
-          <div class="rounded-xl border border-white/5 bg-slate-950/40 p-3 flex items-center justify-between">
-            <div>
-              <p class="text-[9px] font-semibold text-slate-500 uppercase">Current Account</p>
-              <h3 class="text-xs font-bold text-white">
-                {{ selectedTenant() === 'tenant_1' ? 'Afghan Wireless' : 'Roshan Telecom' }}
-              </h3>
-            </div>
-            <div class="flex gap-1.5">
-              <button (click)="switchTenant('tenant_1')" 
-                      [class.bg-indigo-600]="selectedTenant() === 'tenant_1'"
-                      [class.text-white]="selectedTenant() === 'tenant_1'"
-                      class="h-6 w-8 rounded text-[9px] font-bold bg-slate-900 border border-white/10 hover:border-indigo-500/50 text-slate-400 transition-all flex items-center justify-center">
-                T1
-              </button>
-              <button (click)="switchTenant('tenant_2')" 
-                      [class.bg-indigo-600]="selectedTenant() === 'tenant_2'"
-                      [class.text-white]="selectedTenant() === 'tenant_2'"
-                      class="h-6 w-8 rounded text-[9px] font-bold bg-slate-900 border border-white/10 hover:border-indigo-500/50 text-slate-400 transition-all flex items-center justify-center">
-                T2
-              </button>
-            </div>
-          </div>
-
-          <!-- Dashboard Workspaces Panel -->
-          <div class="space-y-3 border-t border-white/5 pt-4">
-            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Dashboard Workspaces</h2>
-            
-            <div class="relative">
-              <select [ngModel]="dashboardService.activeDashboard()"
-                      (ngModelChange)="selectDashboard($event)"
-                      class="w-full rounded-xl border border-white/10 bg-slate-950/40 p-2.5 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
-                <option [ngValue]="null" class="bg-slate-900 text-slate-200">-- Select Workspace --</option>
-                @for (db of dashboardService.dashboards(); track db.id) {
-                  <option [ngValue]="db" class="bg-slate-900 text-slate-200">{{ db.name }}</option>
-                }
-              </select>
-            </div>
-
-            <div class="flex gap-2">
-              <input type="text"
-                     [value]="newDashboardName()"
-                     (input)="newDashboardName.set($any($event.target).value)"
-                     placeholder="New Workspace Name"
-                     class="flex-1 min-w-0 rounded-lg border border-white/10 bg-slate-950/40 px-2 py-1.5 text-[11px] text-slate-200 placeholder-slate-500 focus:border-indigo-500 focus:outline-none" />
-              <button (click)="createWorkspace()"
-                      class="rounded-lg bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-[11px] font-bold text-white transition-all">
-                Create
-              </button>
-            </div>
-          </div>
-
-          <!-- AI Natural Language Prompt Console -->
-          <div class="space-y-3 border-t border-white/5 pt-4">
-            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">AI Analytics Engine</h2>
-            
-            <div class="relative">
-              <textarea [(ngModel)]="queryText" 
-                        (keydown.enter)="$event.preventDefault(); onSubmitQuery()"
-                        placeholder="Ask a question (e.g. Show revenue trend)" 
-                        rows="3"
-                        class="w-full rounded-xl border border-white/10 bg-slate-950/40 p-3.5 text-xs text-slate-200 placeholder-slate-500 focus:border-indigo-500 focus:outline-none resize-none"></textarea>
-            </div>
-
-            <button (click)="onSubmitQuery()" 
-                    [disabled]="dashboardService.loading()"
-                    class="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-3 text-xs shadow-md transition-all flex items-center justify-center gap-1.5">
-              @if (dashboardService.loading()) {
-                <div class="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                Analyzing Data...
-              } @else {
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 21l8.982-11.795H14l1.37-6.205L6.388 14.85H9.81Z" />
-                </svg>
-                Execute AI Pipeline
-              }
-            </button>
-          </div>
-
-          <!-- Suggestions Chips -->
-          <div class="space-y-2">
-            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Suggestive Templates</h2>
-            <div class="flex flex-col gap-2">
-              @for (suggest of suggestions; track suggest) {
-                <button (click)="runQuery(suggest)" 
-                        [disabled]="dashboardService.loading()"
-                        class="text-left text-[11px] p-2.5 rounded-lg border border-white/5 bg-slate-950/20 hover:border-indigo-500/40 hover:bg-slate-950/40 text-slate-300 font-medium transition-all duration-200">
-                  {{ suggest }}
-                </button>
-              }
-            </div>
-          </div>
-
         </div>
 
-        <!-- Footer Profile logout -->
-        <div class="border-t border-white/5 pt-4 flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <div class="h-8 w-8 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-xs font-bold text-white">
-              AD
-            </div>
-            <div>
-              <p class="text-xs font-bold text-white">System Admin</p>
-              <p class="text-[9px] text-slate-500 font-semibold uppercase">Super Administrator</p>
+        <!-- Scrollable Nav Body -->
+        <nav class="flex-1 overflow-y-auto px-3 py-3 space-y-1 text-sm">
+
+          <!-- TENANT ACCOUNT -->
+          <div class="px-2 pb-2">
+            <p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">Active Account</p>
+            <div class="flex gap-1.5">
+              <button (click)="switchTenant('tenant_1')"
+                      class="flex-1 flex flex-col items-center py-2.5 px-2 rounded-xl border transition-all duration-200"
+                      [class.border-indigo-500]="selectedTenant()==='tenant_1'"
+                      [class.bg-indigo-500/10]="selectedTenant()==='tenant_1'"
+                      [class.border-white/5]="selectedTenant()!=='tenant_1'"
+                      [class.bg-transparent]="selectedTenant()!=='tenant_1'">
+                <span class="text-[10px] font-bold" [class.text-indigo-300]="selectedTenant()==='tenant_1'" [class.text-slate-400]="selectedTenant()!=='tenant_1'">Afghan Wireless</span>
+                <span class="text-[8px] text-slate-600 mt-0.5">Tenant 1</span>
+              </button>
+              <button (click)="switchTenant('tenant_2')"
+                      class="flex-1 flex flex-col items-center py-2.5 px-2 rounded-xl border transition-all duration-200"
+                      [class.border-indigo-500]="selectedTenant()==='tenant_2'"
+                      [class.bg-indigo-500/10]="selectedTenant()==='tenant_2'"
+                      [class.border-white/5]="selectedTenant()!=='tenant_2'"
+                      [class.bg-transparent]="selectedTenant()!=='tenant_2'">
+                <span class="text-[10px] font-bold" [class.text-indigo-300]="selectedTenant()==='tenant_2'" [class.text-slate-400]="selectedTenant()!=='tenant_2'">Roshan Telecom</span>
+                <span class="text-[8px] text-slate-600 mt-0.5">Tenant 2</span>
+              </button>
             </div>
           </div>
-          <button (click)="onLogout()" 
-                  class="rounded-lg bg-slate-950/60 hover:bg-slate-950 text-slate-400 hover:text-white p-2 border border-white/5 transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+
+          <!-- Divider -->
+          <div class="h-px bg-white/[0.05] mx-2 my-1"></div>
+
+          <!-- WORKSPACES SECTION -->
+          <div>
+            <button (click)="workspaceOpen.update(v=>!v)"
+                    class="w-full flex items-center justify-between px-2 py-2 rounded-lg hover:bg-white/[0.04] transition-colors group">
+              <div class="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 text-slate-500">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+                </svg>
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Workspaces</span>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"
+                   class="w-3 h-3 text-slate-600 transition-transform duration-200"
+                   [class.rotate-180]="workspaceOpen()">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+
+            @if (workspaceOpen()) {
+              <div class="mt-1 space-y-0.5 px-1">
+                @if (dashboardService.dashboards().length === 0) {
+                  <p class="text-[11px] text-slate-600 italic px-2 py-1.5">No workspaces yet.</p>
+                }
+                @for (db of dashboardService.dashboards(); track db.id) {
+                  <button (click)="selectDashboard(db)"
+                          class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-all duration-150 group"
+                          [class.bg-indigo-500/10]="dashboardService.activeDashboard()?.id === db.id"
+                          [class.text-indigo-300]="dashboardService.activeDashboard()?.id === db.id"
+                          [class.text-slate-400]="dashboardService.activeDashboard()?.id !== db.id"
+                          [class.hover:bg-white/[0.04]]="dashboardService.activeDashboard()?.id !== db.id">
+                    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          [class.bg-indigo-400]="dashboardService.activeDashboard()?.id === db.id"
+                          [class.bg-slate-700]="dashboardService.activeDashboard()?.id !== db.id"></span>
+                    <span class="text-[12px] font-medium truncate">{{ db.name }}</span>
+                  </button>
+                }
+                <!-- New workspace toggle -->
+                @if (!showNewWorkspace()) {
+                  <button (click)="showNewWorkspace.set(true)"
+                          class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-slate-600 hover:text-indigo-400 hover:bg-indigo-500/5 transition-all text-[11px] font-medium">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 h-3">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    New Workspace
+                  </button>
+                } @else {
+                  <div class="flex gap-1.5 pt-1 px-1">
+                    <input type="text" [value]="newDashboardName()"
+                           (input)="newDashboardName.set($any($event.target).value)"
+                           (keydown.enter)="createWorkspace(); showNewWorkspace.set(false)"
+                           (keydown.escape)="showNewWorkspace.set(false)"
+                           placeholder="Workspace name…"
+                           autofocus
+                           class="flex-1 min-w-0 rounded-lg border border-white/10 bg-slate-950/60 px-2.5 py-1.5 text-[11px] text-slate-200 placeholder-slate-600 focus:border-indigo-500 focus:outline-none" />
+                    <button (click)="createWorkspace(); showNewWorkspace.set(false)"
+                            class="rounded-lg bg-indigo-600 hover:bg-indigo-500 px-2.5 py-1.5 text-[11px] font-bold text-white transition-all">
+                      Add
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Divider -->
+          <div class="h-px bg-white/[0.05] mx-2 my-1"></div>
+
+          <!-- CUSTOM DATASETS SECTION -->
+          <div>
+            <button (click)="datasetsOpen.update(v=>!v)"
+                    class="w-full flex items-center justify-between px-2 py-2 rounded-lg hover:bg-white/[0.04] transition-colors">
+              <div class="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 text-slate-500">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 5.625c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
+                </svg>
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Custom Datasets</span>
+                @if (datasets().length > 0) {
+                  <span class="ml-auto bg-slate-800 text-slate-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full">{{ datasets().length }}</span>
+                }
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"
+                   class="w-3 h-3 text-slate-600 transition-transform duration-200"
+                   [class.rotate-180]="datasetsOpen()">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+
+            @if (datasetsOpen()) {
+              <div class="mt-1 px-1 space-y-0.5">
+                @if (datasets().length === 0) {
+                  <p class="text-[11px] text-slate-600 italic px-2 py-1.5">No datasets uploaded yet.</p>
+                }
+                @for (ds of datasets(); track ds.id) {
+                  <div class="group flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/[0.04] transition-all cursor-pointer border border-transparent hover:border-white/[0.06]"
+                       (click)="previewDataset(ds)">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 text-emerald-500 flex-shrink-0">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                    </svg>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-[12px] text-slate-300 font-medium truncate">{{ ds.tableName }}</p>
+                      <p class="text-[10px] text-slate-600">{{ ds.rowCount | number }} rows</p>
+                    </div>
+                    <button (click)="deleteDataset(ds, $event)"
+                            class="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-rose-400 transition-all p-0.5 rounded focus:opacity-100">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                }
+                <label for="csv-file-input" class="flex items-center gap-2 px-2.5 py-2 rounded-lg text-slate-600 hover:text-cyan-400 hover:bg-cyan-500/5 transition-all cursor-pointer text-[11px] font-medium border border-dashed border-white/[0.06] hover:border-cyan-500/30 mt-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 h-3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                  </svg>
+                  Upload CSV Dataset
+                </label>
+                <input id="csv-file-input" type="file" accept=".csv" class="hidden" (change)="onCsvUpload($event)">
+              </div>
+            }
+          </div>
+
+          <!-- Divider -->
+          <div class="h-px bg-white/[0.05] mx-2 my-1"></div>
+
+          <!-- AI ENGINE SECTION -->
+          <div>
+            <button (click)="aiOpen.update(v=>!v)"
+                    class="w-full flex items-center justify-between px-2 py-2 rounded-lg hover:bg-white/[0.04] transition-colors">
+              <div class="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 text-slate-500">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+                </svg>
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">AI Analytics</span>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"
+                   class="w-3 h-3 text-slate-600 transition-transform duration-200"
+                   [class.rotate-180]="aiOpen()">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+
+            @if (aiOpen()) {
+              <div class="mt-1 px-1 space-y-2">
+                <div class="relative">
+                  <textarea [(ngModel)]="queryText"
+                            (keydown.enter)="$event.preventDefault(); onSubmitQuery()"
+                            placeholder="Ask anything about your data…"
+                            rows="3"
+                            class="w-full rounded-xl border border-white/[0.08] bg-slate-950/50 p-3 text-[12px] text-slate-200 placeholder-slate-600 focus:border-indigo-500/60 focus:outline-none resize-none leading-relaxed"></textarea>
+                </div>
+                <button (click)="onSubmitQuery()"
+                        [disabled]="dashboardService.loading()"
+                        class="w-full rounded-xl py-2 text-[12px] font-bold text-white transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-60"
+                        [class.bg-gradient-to-r]="!dashboardService.loading()"
+                        [class.from-indigo-600]="!dashboardService.loading()"
+                        [class.to-indigo-500]="!dashboardService.loading()"
+                        [class.hover:from-indigo-500]="!dashboardService.loading()"
+                        [class.hover:to-indigo-400]="!dashboardService.loading()"
+                        [class.bg-slate-800]="dashboardService.loading()">
+                  @if (dashboardService.loading()) {
+                    <div class="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                    Analyzing…
+                  } @else {
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 21l8.982-11.795H14l1.37-6.205L6.388 14.85H9.81Z" />
+                    </svg>
+                    Run AI Pipeline
+                  }
+                </button>
+              </div>
+            }
+          </div>
+
+          <!-- Divider -->
+          <div class="h-px bg-white/[0.05] mx-2 my-1"></div>
+
+          <!-- QUERY TEMPLATES SECTION -->
+          <div>
+            <button (click)="templatesOpen.update(v=>!v)"
+                    class="w-full flex items-center justify-between px-2 py-2 rounded-lg hover:bg-white/[0.04] transition-colors">
+              <div class="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 text-slate-500">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" />
+                </svg>
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Quick Templates</span>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"
+                   class="w-3 h-3 text-slate-600 transition-transform duration-200"
+                   [class.rotate-180]="templatesOpen()">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+
+            @if (templatesOpen()) {
+              <div class="mt-1 px-1 space-y-0.5">
+                @for (suggest of suggestions; track suggest) {
+                  <button (click)="runQuery(suggest)"
+                          [disabled]="dashboardService.loading()"
+                          class="w-full text-left text-[11px] px-2.5 py-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-white/[0.04] transition-all disabled:opacity-40 leading-snug">
+                    {{ suggest }}
+                  </button>
+                }
+              </div>
+            }
+          </div>
+
+        </nav>
+
+        <!-- Fixed Sidebar Footer -->
+        <div class="flex-none border-t border-white/[0.06] px-4 py-3 flex items-center justify-between bg-[#0d1228]">
+          <div class="flex items-center gap-2.5">
+            <div class="h-7 w-7 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-[10px] font-black text-white flex-shrink-0">
+              AD
+            </div>
+            <div class="min-w-0">
+              <p class="text-[12px] font-semibold text-white truncate">System Admin</p>
+              <p class="text-[9px] text-slate-600 font-medium uppercase tracking-wider truncate">{{ selectedTenant() === 'tenant_1' ? 'Afghan Wireless' : 'Roshan Telecom' }}</p>
+            </div>
+          </div>
+          <button (click)="onLogout()"
+                  title="Sign out"
+                  class="h-7 w-7 rounded-lg bg-slate-900 hover:bg-rose-950/60 text-slate-500 hover:text-rose-400 border border-white/[0.06] hover:border-rose-500/20 flex items-center justify-center transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
             </svg>
           </button>
         </div>
       </aside>
+
 
       <!-- Main Panel Viewport -->
       <main class="flex-1 flex flex-col overflow-y-auto p-8 relative">
@@ -425,6 +571,88 @@
         </div>
       </main>
 
+    </div>
+  }
+
+  <!-- CSV Dataset Preview Modal -->
+  @if (activePreviewDataset()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+      <div class="w-full max-w-4xl rounded-2xl border border-white/10 bg-slate-900 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between border-b border-white/5 bg-slate-950/30 p-4">
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+              📄 {{ activePreviewDataset()?.tableName }}
+              <span class="text-xs text-slate-500 font-normal">({{ activePreviewDataset()?.rowCount }} rows)</span>
+            </h3>
+            <p class="text-[10px] text-slate-400 mt-0.5">Original File: {{ activePreviewDataset()?.originalFilename }}</p>
+          </div>
+          <button (click)="closePreview()" class="h-8 w-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all flex items-center justify-center font-bold text-sm">
+            ✕
+          </button>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="p-6 overflow-y-auto flex-1 space-y-6">
+          <!-- Schema definition -->
+          <div>
+            <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2.5">Inferred Schema</h4>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              @for (entry of activePreviewSchema() | keyvalue; track entry.key) {
+                <div class="p-3 rounded-xl bg-slate-950/30 border border-white/5 flex flex-col gap-0.5">
+                  <span class="text-xs font-mono text-indigo-400 truncate">{{ entry.key }}</span>
+                  <span class="text-[9px] text-slate-500 font-bold uppercase">{{ entry.value }}</span>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Data Preview Table -->
+          <div>
+            <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2.5">Data Preview (First 10 Rows)</h4>
+            <div class="overflow-x-auto border border-white/5 rounded-xl bg-slate-950/20">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr class="bg-slate-950/40 border-b border-white/5 text-slate-400 font-semibold">
+                    <th class="p-3 text-[10px] font-bold uppercase font-mono">ID</th>
+                    @for (col of previewColumns(); track col) {
+                      @if (col !== 'id') {
+                        <th class="p-3 text-[10px] font-bold uppercase font-mono">{{ col }}</th>
+                      }
+                    }
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of previewRows(); track $index) {
+                    <tr class="border-b border-white/5 hover:bg-slate-900/40 transition-colors">
+                      <td class="p-3 text-slate-500 font-mono">{{ row.id }}</td>
+                      @for (col of previewColumns(); track col) {
+                        @if (col !== 'id') {
+                          <td class="p-3 text-slate-300 font-medium">{{ row[col] }}</td>
+                        }
+                      }
+                    </tr>
+                  }
+                  @if (previewRows().length === 0) {
+                    <tr>
+                      <td [attr.colspan]="previewColumns().length + 1" class="p-8 text-center text-slate-500 italic">
+                        No rows found in this dataset.
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="border-t border-white/5 bg-slate-950/20 p-4 flex justify-end">
+          <button (click)="closePreview()" class="rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 text-xs font-bold transition-all">
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   }
 </div>

@@ -35,7 +35,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 String username = jwtTokenProvider.getUsernameFromToken(jwt);
                 String jwtTenantId = jwtTokenProvider.getTenantIdFromToken(jwt);
 
-                if (StringUtils.hasText(jwtTenantId)) {
+                if (!StringUtils.hasText(tenantId) && StringUtils.hasText(jwtTenantId)) {
                     tenantId = jwtTenantId;
                 }
 

@@ -43,7 +43,10 @@ public class AnalyticsController {
     @PostMapping("/query")
     public ResponseEntity<?> processQuery(@RequestBody QueryRequest request) {
         try {
-            String question = request.query();
+            String question = request.query() != null ? request.query() : request.question();
+            if (question == null || question.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Query cannot be empty"));
+            }
             log.info("Processing natural language query: {}", question);
             long startTime = System.currentTimeMillis();
 
@@ -89,6 +92,9 @@ public class AnalyticsController {
             A2UIResponse response = responseBuilderService.buildResponse(decision.title(), decision, metadata);
 
             return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException iae) {
+            log.warn("Invalid query request: {}", iae.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", iae.getMessage()));
         } catch (SecurityException se) {
             log.error("Security block on query execution", se);
             return ResponseEntity.status(403).body(Map.of("error", se.getMessage()));
@@ -118,5 +124,5 @@ public class AnalyticsController {
         }
     }
 
-    public record QueryRequest(String query) {}
+    public record QueryRequest(String query, String question) {}
 }
