@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/dashboards")
+@RequestMapping({"/api/dashboards", "/api/workspaces"})
 public class DashboardController {
 
     private static final Logger log = LoggerFactory.getLogger(DashboardController.class);
@@ -27,7 +27,7 @@ public class DashboardController {
     @GetMapping
     public ResponseEntity<List<DashboardConfig>> getAllDashboards() {
         String tenantId = TenantContext.getCurrentTenant();
-        log.info("Fetching dashboards for tenant: {}", tenantId);
+        log.info("Fetching dashboards/workspaces for tenant: {}", tenantId);
         List<DashboardConfig> dashboards = dashboardRepository.findByTenantId(tenantId);
         return ResponseEntity.ok(dashboards);
     }
@@ -35,7 +35,7 @@ public class DashboardController {
     @GetMapping("/{id}")
     public ResponseEntity<?> getDashboardById(@PathVariable Long id) {
         String tenantId = TenantContext.getCurrentTenant();
-        log.info("Fetching dashboard {} for tenant: {}", id, tenantId);
+        log.info("Fetching dashboard/workspace {} for tenant: {}", id, tenantId);
         Optional<DashboardConfig> configOpt = dashboardRepository.findByIdAndTenantId(id, tenantId);
         if (configOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -50,14 +50,60 @@ public class DashboardController {
         String layoutConfig = request.getOrDefault("layoutConfig", "[]");
 
         if (name == null || name.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Dashboard name is required"));
+            return ResponseEntity.badRequest().body(Map.of("error", "Workspace name is required"));
         }
 
-        log.info("Creating dashboard '{}' for tenant: {}", name, tenantId);
+        log.info("Creating dashboard/workspace '{}' for tenant: {}", name, tenantId);
         DashboardConfig config = new DashboardConfig();
         config.setName(name);
         config.setTenantId(tenantId);
         config.setLayoutConfig(layoutConfig);
+
+        DashboardConfig saved = dashboardRepository.save(config);
+        return ResponseEntity.ok(saved);
+    }
+
+    @PostMapping("/save")
+    public ResponseEntity<?> saveWorkspace(@RequestBody Map<String, Object> request) {
+        String tenantId = TenantContext.getCurrentTenant();
+        String name = (String) request.get("name");
+        String layoutConfig = (String) request.getOrDefault("layoutConfig", "[]");
+        Object idObj = request.get("id");
+
+        if (name == null || name.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Workspace name is required"));
+        }
+
+        DashboardConfig config;
+        if (idObj != null) {
+            try {
+                Long id = Long.valueOf(idObj.toString());
+                Optional<DashboardConfig> existingOpt = dashboardRepository.findByIdAndTenantId(id, tenantId);
+                if (existingOpt.isPresent()) {
+                    config = existingOpt.get();
+                    config.setName(name);
+                    config.setLayoutConfig(layoutConfig);
+                    log.info("Updating existing workspace {} ('{}') in database for tenant: {}", id, name, tenantId);
+                } else {
+                    config = new DashboardConfig();
+                    config.setName(name);
+                    config.setTenantId(tenantId);
+                    config.setLayoutConfig(layoutConfig);
+                    log.info("Workspace ID {} not found, creating new workspace '{}' in database for tenant: {}", id, name, tenantId);
+                }
+            } catch (NumberFormatException e) {
+                config = new DashboardConfig();
+                config.setName(name);
+                config.setTenantId(tenantId);
+                config.setLayoutConfig(layoutConfig);
+            }
+        } else {
+            config = new DashboardConfig();
+            config.setName(name);
+            config.setTenantId(tenantId);
+            config.setLayoutConfig(layoutConfig);
+            log.info("Saving new workspace '{}' to database for tenant: {}", name, tenantId);
+        }
 
         DashboardConfig saved = dashboardRepository.save(config);
         return ResponseEntity.ok(saved);
@@ -82,7 +128,7 @@ public class DashboardController {
             config.setLayoutConfig(layoutConfig);
         }
 
-        log.info("Updating dashboard {} ('{}') for tenant: {}", id, config.getName(), tenantId);
+        log.info("Updating dashboard/workspace {} ('{}') in database for tenant: {}", id, config.getName(), tenantId);
         DashboardConfig saved = dashboardRepository.save(config);
         return ResponseEntity.ok(saved);
     }
@@ -95,8 +141,8 @@ public class DashboardController {
             return ResponseEntity.notFound().build();
         }
 
-        log.info("Deleting dashboard {} for tenant: {}", id, tenantId);
+        log.info("Deleting dashboard/workspace {} for tenant: {}", id, tenantId);
         dashboardRepository.delete(configOpt.get());
-        return ResponseEntity.ok(Map.of("message", "Dashboard deleted successfully"));
+        return ResponseEntity.ok(Map.of("message", "Workspace deleted successfully"));
     }
 }

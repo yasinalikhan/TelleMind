@@ -179,6 +179,21 @@ public class SqlGeneratorService {
         String q = question.toLowerCase().trim();
         log.info("Using heuristics engine for: {}", question);
 
+        // Google Map query
+        if (q.contains("google map") || q.contains("base station") || q.contains("tower coordinates") || q.contains("gis")) {
+            return "SELECT tower, region, data_mb, voice_minutes, timestamp FROM usage ORDER BY data_mb DESC";
+        }
+
+        // Link Analysis query
+        if (q.contains("link analysis") || q.contains("network graph") || q.contains("caller graph") || q.contains("fraud ring") || q.contains("connections")) {
+            return "SELECT msisdn, region, plan, status, recharge_amount, signup_date FROM subscriber ORDER BY recharge_amount DESC";
+        }
+
+        // Radar / Spider / Treemap / Funnel
+        if (q.contains("radar") || q.contains("spider") || q.contains("treemap") || q.contains("funnel") || q.contains("waterfall") || q.contains("bullet") || q.contains("candlestick") || q.contains("polar") || q.contains("sankey")) {
+            return "SELECT region, SUM(data_mb) AS data_mb, SUM(voice_minutes) AS voice_minutes FROM usage GROUP BY region ORDER BY data_mb DESC";
+        }
+
         // 1. Total Revenue
         if (q.contains("total revenue") || q.contains("how much revenue")) {
             return "SELECT SUM(amount) AS total_revenue FROM revenue";

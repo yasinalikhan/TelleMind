@@ -1,10 +1,12 @@
 # 🛰️ TeleMind — AI Visualization Engine for Telecom Analytics
 
-> **Ask a question. Get a dashboard. Instantly.**
+> **Ask a question. Get an enterprise dashboard. Instantly.**
 
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.1-brightgreen?logo=springboot)](https://spring.io/projects/spring-boot)
 [![Angular](https://img.shields.io/badge/Angular-21-red?logo=angular)](https://angular.dev)
 [![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)](https://openjdk.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?logo=postgresql)](https://www.postgresql.org/)
+[![Flyway](https://img.shields.io/badge/Flyway-10-red?logo=flyway)](https://flywaydb.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-blue?logo=docker)](https://docs.docker.com/compose/)
 [![License](https://img.shields.io/badge/License-MIT-purple)](LICENSE)
 
@@ -12,108 +14,145 @@
 
 ## 📖 What is TeleMind?
 
-**TeleMind** is an enterprise-grade, multi-tenant **AI-powered Telecom Analytics SaaS platform**. It allows telecom operators to ask natural language questions about their network data and automatically receive the most appropriate data visualization — no SQL, no dashboard configuration required.
+**TeleMind** is an enterprise-grade, multi-tenant **AI-powered Telecom Analytics SaaS platform**. It empowers telecom operators, network planners, and financial executives to ask natural language questions about complex network and subscriber datasets and immediately receive dynamically rendered visualizations — without writing SQL or building dashboards manually.
 
-### The Pipeline
+### Core Capabilities
 
-```
-Natural Language Question
-        ↓
-  AI Understanding Layer
-        ↓
-  SQL Generation Engine
-   (OpenAI / Heuristics)
-        ↓
-  Secure Query Executor
-   (Tenant-Isolated H2)
-        ↓
-  Visualization Decision Engine
-        ↓
-    A2UI JSON Response
-        ↓
-  Angular Dynamic Renderer
-  (Chart / Table / Map / KPI)
-```
-
-### Example Queries
-
-| Question | Visualization |
-|---|---|
-| *"Show revenue trend for last 30 days"* | 📈 Line Chart |
-| *"Show top 10 subscribers by recharge amount"* | 📊 Bar Chart |
-| *"Compare data usage by region"* | 🗺️ Regional Map |
-| *"Show inactive subscribers"* | 📋 Sortable Table |
-| *"Display network usage on map"* | 🗺️ Heatmap + Map |
-| *"How many active subscribers?"* | 🔢 KPI Card |
+- 🤖 **Dual-Engine AI Intelligence**: Works out-of-the-box with **Local Ollama (llama3)** or **OpenAI (GPT-4o)**, backed by a deterministic keyword heuristics fallback engine.
+- 🎨 **Adaptive A2UI Protocol**: Translates complex SQL result sets into structured **A2UI JSON** payloads for dynamic client-side UI generation.
+- 📊 **Rich Telecom Visualization Suite**: 
+  - Standard BI: Line, Bar, Pie, Heatmap, Sortable & Searchable Tables, KPI Cards.
+  - Specialized BI: Radar profiles, Market Share Treemaps, Subscriber Funnels, Financial Waterfalls, Bullet/SLA charts.
+  - Telecom Advanced: **Google Maps Geospatial Studio** (tower clustering & coverage) and **Link Analysis Relationship Graphs** (CDR handoffs, fraud rings).
+- 📁 **Custom CSV Dataset Studio**: Upload custom telecom CSVs; automatic schema inference, table creation, and multi-tenant isolated querying.
+- 🗄️ **Enterprise Multi-Tenancy**: Strict tenant isolation across PostgreSQL with automated query injection, role-based Spring Security (BCrypt), and JWT validation.
+- 💾 **Workspace & Dashboard Persistence**: Save, customize, and reload dynamic dashboard configurations per tenant.
 
 ---
 
-## 🏗️ Architecture
+## 🔄 The Pipeline
 
 ```
-telemind/
-├── backend/                    # Spring Boot (Java 21)
+            Natural Language Query
+                      ↓
+       [ AI Understanding & Prompt Layer ]
+                      ↓
+        [ SQL Generation & Validation ]
+      (Ollama LLaMA3 / OpenAI / Heuristics)
+                      ↓
+          [ Secure Query Execution ]
+    (PostgreSQL 16 + Multi-Tenant Isolation)
+                      ↓
+       [ Visualization Decision Engine ]
+ (Maps intent + data shape → optimal component)
+                      ↓
+             [ A2UI JSON Response ]
+                      ↓
+       [ Angular 21 Dynamic Renderer ]
+ (Google Maps / Link Graph / Charts / KPI / Tables)
+```
+
+---
+
+## 💡 Example Queries & Visualization Mapping
+
+| Query Intent | Sample Natural Language Prompt | Rendered Component |
+|---|---|---|
+| **Revenue Trends** | *"Show revenue trend for last 30 days"* | 📈 Line Chart |
+| **Top Performers** | *"Show top 10 subscribers by recharge amount"* | 📊 Bar Chart |
+| **Regional Comparison** | *"Compare data usage by region"* | 🗺️ Regional Heatmap / Map |
+| **Subscriber Audit** | *"Show inactive subscribers"* | 📋 Sortable Data Table |
+| **Geospatial Towers** | *"Show tower coordinates on google map"* | 📍 Google Maps GIS Studio |
+| **Fraud & Call Graph** | *"Show caller link analysis and fraud rings"* | 🕸️ Network Link Analysis Graph |
+| **Network Capability** | *"Show network capability radar profile"* | 🕸️ Radar / Spider Chart |
+| **Market Share** | *"Show subscriber market share treemap"* | 🔲 Treemap |
+| **Funnel Conversion**| *"Show subscriber onboarding funnel"* | 🔻 Funnel Chart |
+| **Financial Walk**   | *"Show quarterly revenue variance waterfall"*| 🪜 Waterfall Chart |
+| **Executive KPI**    | *"How many active subscribers?"* | 🔢 KPI Metric Card |
+
+---
+
+## 🏗️ System Architecture
+
+```
+TeleMind/
+├── backend/                              # Spring Boot 3.4.1 (Java 21)
 │   ├── src/main/java/com/telemind/analytics/
-│   │   ├── TeleMindApplication.java
-│   │   ├── a2ui/               # A2UI JSON Protocol Models
-│   │   │   ├── A2UIResponse.java
-│   │   │   ├── A2UIPage.java
-│   │   │   ├── A2UIComponent.java
-│   │   │   ├── A2UIEvent.java
-│   │   │   ├── A2UIAction.java
-│   │   │   └── ResponseBuilderService.java
-│   │   ├── ai/                 # AI & Visualization Decision Layer
-│   │   │   ├── PromptService.java
-│   │   │   ├── SqlGeneratorService.java
-│   │   │   └── VisualizationService.java
-│   │   ├── controller/         # REST Controllers
-│   │   │   ├── AnalyticsController.java
-│   │   │   └── AuthController.java
-│   │   ├── query/              # SQL Execution Layer
-│   │   │   ├── QueryExecutorService.java
-│   │   │   └── SqlValidatorService.java
-│   │   └── security/           # JWT + Multi-Tenant Security
-│   │       ├── JwtTokenProvider.java
-│   │       ├── JwtFilter.java
-│   │       ├── SecurityConfig.java
-│   │       ├── TenantContext.java
-│   │       └── RateLimitingFilter.java
+│   │   ├── TeleMindApplication.java     # Application entry point
+│   │   ├── a2ui/                         # A2UI JSON Protocol Definitions
+│   │   │   ├── A2UIResponse.java         # Envelope response model
+│   │   │   ├── A2UIPage.java             # Dynamic page layout model
+│   │   │   ├── A2UIComponent.java        # Component specification model
+│   │   │   ├── A2UIEvent.java            # Interactive events (click, drilldown)
+│   │   │   ├── A2UIAction.java           # Contextual triggers & filters
+│   │   │   └── ResponseBuilderService.java # A2UI builder service
+│   │   ├── ai/                           # AI & Decision Pipeline
+│   │   │   ├── PromptService.java        # System prompts & schema injection
+│   │   │   ├── SqlGeneratorService.java  # Ollama/OpenAI client & JSON parser
+│   │   │   └── VisualizationService.java # Heuristic visualization classifier
+│   │   ├── controller/                   # REST Endpoints
+│   │   │   ├── AnalyticsController.java  # Natural language query & drill-down
+│   │   │   ├── AuthController.java       # JWT authentication & session
+│   │   │   ├── DashboardController.java  # Workspace & layout persistence
+│   │   │   └── DatasetController.java    # Custom CSV upload & schema generator
+│   │   ├── model/                        # JPA Entities
+│   │   │   ├── CustomDataset.java        # Dynamic dataset metadata
+│   │   │   └── DashboardConfig.java      # Saved dashboard layouts
+│   │   ├── query/                        # Query Execution & Security
+│   │   │   ├── QueryExecutorService.java # Parameterized tenant query execution
+│   │   │   └── SqlValidatorService.java  # SQL AST / allowlist guardrails
+│   │   └── security/                     # Spring Security & Multi-Tenancy
+│   │       ├── SecurityConfig.java       # SecurityFilterChain & CORS
+│   │       ├── JwtTokenProvider.java     # HS512 JWT generation/verification
+│   │       ├── JwtFilter.java            # Request filter extracting tenant & claims
+│   │       ├── TenantContext.java        # ThreadLocal tenant storage
+│   │       ├── User.java                 # User entity (BCrypt credentials)
+│   │       ├── UserRepository.java       # User JPA repository
+│   │       ├── UserDetailsServiceImpl.java # Custom user details loader
+│   │       └── RateLimitingFilter.java   # Token bucket request throttling
 │   └── src/main/resources/
-│       ├── application.properties
-│       ├── schema.sql
-│       └── data.sql
+│       ├── application.properties        # Backend configuration
+│       └── db/migration/                 # Flyway Schema Migrations
+│           ├── V1__create_schema.sql     # users, subscriber, revenue, usage
+│           ├── V2__seed_data.sql         # Seed data & BCrypt hashed users
+│           ├── V3__create_dashboard_configs.sql # Workspace layouts
+│           └── V4__create_custom_datasets.sql   # Custom dynamic datasets
 │
-├── frontend/                   # Angular 21 (Standalone + Signals)
-│   └── src/app/
-│       ├── core/
-│       │   ├── models/         # A2UI TypeScript Interfaces
-│       │   └── services/       # HTTP, Action, Validation, Registry Services
-│       └── shared/components/
-│           ├── a2ui-kpi/       # KPI Card Component
-│           ├── a2ui-chart/     # Line / Bar / Pie / Heatmap (SVG)
-│           ├── a2ui-table/     # Sortable + Searchable Table
-│           ├── a2ui-map/       # SVG Network Region Map
-│           └── a2ui-filter/    # Filter Bar Component
+├── frontend/                             # Angular 21 (Standalone + Signals)
+│   ├── src/app/
+│   │   ├── app.ts                        # Root component with Signal reactivity
+│   │   ├── app.html                      # Workspace, query bar & canvas template
+│   │   ├── core/
+│   │   │   ├── models/                   # A2UI TypeScript models
+│   │   │   └── services/                 # API, Authentication, Dataset, Registry
+│   │   └── shared/components/
+│   │       ├── a2ui-chart/               # SVG Charts (Line, Bar, Pie, Radar, etc.)
+│   │       ├── a2ui-google-map/          # Interactive GIS Tower Map
+│   │       ├── a2ui-link-analysis/       # Telecom Link & Fraud Graph
+│   │       ├── a2ui-table/               # Sortable & searchable data table
+│   │       ├── a2ui-kpi/                 # KPI status cards
+│   │       ├── a2ui-map/                 # Regional SVG heatmap
+│   │       └── a2ui-filter/              # Interactive drill-down filters
 │
-├── docker-compose.yml          # Full stack orchestration
+├── docker-compose.yml                    # PostgreSQL 16 + Backend + Frontend
+├── GIT_DOCS.md                           # Repository Git workflow & guidelines
 └── README.md
 ```
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Docker)
+
+The fastest and recommended way to spin up the entire TeleMind stack is with Docker Compose.
 
 ### Prerequisites
 
-| Tool | Version | Install |
-|---|---|---|
-| Docker | 24+ | [docs.docker.com](https://docs.docker.com/get-docker/) |
-| Docker Compose | v2+ | Included with Docker Desktop |
-| Git | Any | [git-scm.com](https://git-scm.com) |
-
-> **Java / Node.js / Maven are NOT required** — Docker handles everything.
-
----
+- [Docker](https://docs.docker.com/get-docker/) (v24+)
+- [Docker Compose](https://docs.docker.com/compose/) (v2+)
+- *(Optional)* [Ollama](https://ollama.ai) running on host with `llama3` for offline local AI inference:
+  ```bash
+  ollama run llama3
+  ```
 
 ### 1. Clone the Repository
 
@@ -122,80 +161,67 @@ git clone https://github.com/your-username/telemind.git
 cd telemind
 ```
 
-### 2. (Optional) Add an OpenAI API Key
-
-Without a key, the system uses a built-in **keyword heuristics engine** that handles all demo queries. To enable full natural language AI:
-
-```bash
-# Create a .env file in the project root
-echo "OPENAI_API_KEY=sk-your-key-here" > .env
-```
-
-Or for a self-hosted/compatible API (Ollama, Groq, etc.):
-```bash
-echo "OPENAI_API_KEY=your-key" >> .env
-echo "OPENAI_API_URL=http://localhost:11434/v1/chat/completions" >> .env
-echo "OPENAI_MODEL=llama3" >> .env
-```
-
-### 3. Start the Full Stack
+### 2. Launch Services
 
 ```bash
 docker compose up --build
 ```
 
-This will:
-- Build the Spring Boot backend JAR
-- Compile and bundle the Angular frontend
-- Seed the H2 database with telecom sample data
-- Start both services
+Docker Compose will automatically:
+1. Spin up a **PostgreSQL 16** container on port `5433` (preventing conflicts with local Postgres).
+2. Execute **Flyway Migrations (V1 to V4)** to initialize tables and seed data.
+3. Build and launch the **Spring Boot 3.4.1** backend on host networking.
+4. Build the **Angular 21** frontend and serve it via Nginx on port `80`.
 
-| Service | URL |
-|---|---|
-| **Frontend Dashboard** | http://localhost |
-| **Backend API** | http://localhost:8080 |
-| **H2 Database Console** | http://localhost:8080/h2-console |
+### 3. Service Ports & Endpoints
 
-### 4. Log In
-
-Open **http://localhost** in your browser.
-
-| Field | Value |
-|---|---|
-| **Username** | `admin` |
-| **Password** | `admin123` |
-| **Tenant** | Select `Afghan Wireless` (T1) or `Roshan Telecom` (T2) |
-
-Click **"Access Console"**.
-
-### 5. Ask a Question
-
-Type any of these into the query box, or click the suggestion chips:
-
-```
-Show revenue trend for last 30 days
-Show top 10 subscribers by recharge amount
-Compare data usage by region
-Show inactive subscribers
-Display network usage on map
-```
+| Service | Address | Notes |
+|---|---|---|
+| **Frontend Web App** | [http://localhost](http://localhost) | Main interactive analytics console |
+| **Backend REST API** | [http://localhost:8080](http://localhost:8080) | Spring Boot REST service |
+| **PostgreSQL Database** | `localhost:5433` | Database: `telemind`, User: `yasinalikhan` |
+| **Local Ollama LLM** | `http://localhost:11434` | Host AI inference server |
 
 ---
 
-## 🛠️ Running Without Docker (Development Mode)
+## 🔐 Default Credentials & Tenants
 
-### Backend (Spring Boot)
+The database is pre-seeded with multi-tenant accounts secured by BCrypt password hashing:
+
+| Username | Password | Role | Tenant ID | Organization |
+|---|---|---|---|---|
+| `admin` | `admin123` | `ROLE_ADMIN` | `tenant_1` | Afghan Wireless |
+| `viewer` | `viewer123` | `ROLE_VIEWER` | `tenant_1` | Afghan Wireless |
+| `roshan_admin` | `admin123` | `ROLE_ADMIN` | `tenant_2` | Roshan Telecom |
+
+---
+
+## 💻 Manual Local Development (Without Docker)
+
+### 1. PostgreSQL Database Setup
+
+Create a PostgreSQL database and configure credentials:
+
+```sql
+CREATE DATABASE telemind;
+CREATE USER yasinalikhan WITH ENCRYPTED PASSWORD 'yasin_123';
+GRANT ALL PRIVILEGES ON DATABASE telemind TO yasinalikhan;
+```
+
+### 2. Backend (Spring Boot 3.4.1)
+
+**Requirements**: Java 21+, Maven 3.9+
 
 ```bash
 cd backend
 mvn spring-boot:run
 ```
 
-> Requires **Java 21+** and **Maven 3.9+**
+The backend boots on port `8080`. Flyway will run automatically and apply all migrations (`V1` through `V4`).
 
-The backend starts at `http://localhost:8080`
+### 3. Frontend (Angular 21)
 
-### Frontend (Angular)
+**Requirements**: Node.js 20+, npm 10+
 
 ```bash
 cd frontend
@@ -203,42 +229,44 @@ npm install
 npm run start
 ```
 
-> Requires **Node.js 22+**
-
-The dev server starts at `http://localhost:4200`
+The frontend development server starts at [http://localhost:4200](http://localhost:4200).
 
 ---
 
-## 🔌 API Reference
+## 🔌 Complete REST API Reference
 
-### Authentication
+### 1. Authentication
 
+#### User Login
 ```http
 POST /api/auth/login
 Content-Type: application/json
 
 {
   "username": "admin",
-  "password": "admin123",
-  "tenantId": "tenant_1"
+  "password": "admin123"
 }
 ```
 
-**Response:**
+**Response (`200 OK`)**:
 ```json
 {
-  "token": "eyJhbGciOiJIUzUxMiJ9..."
+  "token": "eyJhbGciOiJIUzUxMiJ9...",
+  "username": "admin",
+  "tenantId": "tenant_1"
 }
 ```
 
 ---
 
-### Natural Language Query
+### 2. Analytics & Natural Language Query
 
+All requests require the `Authorization: Bearer <token>` header.
+
+#### Natural Language Query
 ```http
 POST /api/analytics/query
 Authorization: Bearer <token>
-X-Tenant-ID: tenant_1
 Content-Type: application/json
 
 {
@@ -246,7 +274,7 @@ Content-Type: application/json
 }
 ```
 
-**Response (A2UI JSON):**
+**Response (`200 OK`) — A2UI Payload**:
 ```json
 {
   "version": "1.0.0",
@@ -255,106 +283,146 @@ Content-Type: application/json
     "layout": "grid",
     "components": [
       {
-        "id": "uuid",
+        "id": "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
         "type": "chart",
         "props": {
           "chartType": "line",
           "xAxis": "date",
           "yAxis": "amount",
-          "data": [...]
+          "data": [
+            { "date": "2026-06-08", "amount": 5200.00 },
+            { "date": "2026-06-09", "amount": 4900.00 }
+          ]
         },
-        "events": [...]
+        "events": []
       }
     ]
   },
-  "actions": []
+  "actions": [],
+  "metadata": {
+    "latencyMs": 42,
+    "cacheHit": false,
+    "sql": "SELECT date, SUM(amount) AS amount FROM revenue WHERE tenant_id = ? GROUP BY date ORDER BY date ASC"
+  }
+}
+```
+
+#### Regional Drill-Down
+```http
+GET /api/analytics/drill-down?region=Kabul
+Authorization: Bearer <token>
+```
+
+---
+
+### 3. Workspaces & Saved Dashboards
+
+#### List Tenant Dashboards
+```http
+GET /api/dashboards
+Authorization: Bearer <token>
+```
+
+#### Save Dashboard Layout
+```http
+POST /api/dashboards
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Executive Revenue Overview",
+  "layoutConfig": "[{\"id\":\"card-1\",\"x\":0,\"y\":0,\"w\":6,\"h\":4}]"
 }
 ```
 
 ---
 
-### Drill-Down
+### 4. Custom CSV Datasets
 
+#### Upload CSV Dataset
 ```http
-GET /api/analytics/drill-down?region=Kabul
+POST /api/datasets/upload
 Authorization: Bearer <token>
-X-Tenant-ID: tenant_1
+Content-Type: multipart/form-data
+
+file: test_sales.csv
+```
+
+#### List Custom Datasets
+```http
+GET /api/datasets
+Authorization: Bearer <token>
+```
+
+#### Preview Dataset Data
+```http
+GET /api/datasets/{id}/preview
+Authorization: Bearer <token>
 ```
 
 ---
 
-## 🔐 Security Features
+## 🛡️ Multi-Tenant Security & Defense-in-Depth
 
-- **JWT Authentication** — HS512 signed tokens, configurable expiry
-- **Multi-Tenant Isolation** — Every SQL query automatically injects `WHERE tenant_id = ?`
-- **SQL Injection Prevention** — Allowlist-only validation (SELECT only, no DDL/DML)
-- **Rate Limiting** — Token bucket per IP (10 requests / 10 seconds)
-- **XSS Protection** — Recursive string sanitizer in Angular validation service
-- **CORS** — Configurable allowed origins
-
----
-
-## 🗃️ Database Schema
-
-```sql
-subscriber (id, msisdn, region, plan, status, recharge_amount, signup_date, tenant_id)
-revenue    (id, date, region, amount, category, tenant_id)
-usage      (id, tower, region, data_mb, voice_minutes, timestamp, tenant_id)
-```
-
-Sample data includes **2 tenants** for multi-tenancy testing:
-- `tenant_1` → Afghan Wireless (12 subscribers, 31 days revenue, 11 towers)
-- `tenant_2` → Roshan Telecom (isolated records)
+1. **Strict Tenant Isolation**:
+   - `TenantContext` maintains thread-bound tenant isolation via `ThreadLocal<String>`.
+   - `QueryExecutorService` analyzes all generated queries and automatically enforces `WHERE tenant_id = ?` parameter binding.
+   - Cross-tenant queries are blocked at both query generation and execution stages.
+2. **SQL Injection Defense**:
+   - `SqlValidatorService` enforces strict read-only queries (`SELECT` only).
+   - Reject statements containing `DROP`, `DELETE`, `UPDATE`, `INSERT`, `ALTER`, `EXEC`, or multiple statement semicolons.
+3. **Authentication & Password Hashing**:
+   - Spring Security `DaoAuthenticationProvider` verifies passwords using `BCryptPasswordEncoder` (12 rounds).
+   - Stateless JWT tokens signed with SHA-512 (`HS512`).
+4. **Adaptive Throttling**:
+   - Built-in token bucket `RateLimitingFilter` safeguards API routes against denial-of-service attempts.
 
 ---
 
-## ⚙️ Configuration
+## 🗄️ Database Schema & Flyway Migrations
 
-| Property | Default | Description |
+The database is versioned using Flyway migrations located in `backend/src/main/resources/db/migration/`:
+
+| Version | Migration Script | Description |
 |---|---|---|
-| `server.port` | `8080` | Backend port |
-| `openai.api.key` | *(empty)* | OpenAI API key (optional) |
-| `openai.api.url` | `https://api.openai.com/v1/chat/completions` | API endpoint |
-| `openai.api.model` | `gpt-4o` | Model name |
-| `app.jwt.secret` | auto-generated | JWT signing secret (change in production!) |
-| `app.jwt.expiration` | `86400000` | Token expiry in ms (24h) |
+| **V1** | `V1__create_schema.sql` | Baseline schema: `users`, `subscriber`, `revenue`, `usage` tables with tenant indexing |
+| **V2** | `V2__seed_data.sql` | Telecom demo datasets & BCrypt pre-seeded credentials for `tenant_1` & `tenant_2` |
+| **V3** | `V3__create_dashboard_configs.sql` | `dashboard_config` table for workspace layout persistence |
+| **V4** | `V4__create_custom_datasets.sql` | `custom_datasets` table for tracking uploaded CSV schemas and dynamic tables |
 
 ---
 
-## 🧪 Running Tests
+## 🧪 Testing
+
+### Backend Test Suite
 
 ```bash
 cd backend
 mvn test
 ```
 
-Tests include:
-- `SqlValidatorServiceTest` — SQL injection prevention
-- `QueryExecutorServiceTest` — Tenant filter injection
-- `TeleMindApplicationTests` — Spring context load
+Includes coverage for:
+- `SqlValidatorServiceTest` — Guardrails against SQL injection & DDL attacks.
+- `QueryExecutorServiceTest` — Strict tenant filter injection verification.
+- `DashboardControllerTest` — Workspace layout API tests.
+- `DatasetControllerTest` — Custom CSV ingestion and type inference validation.
+
+### Frontend Test Suite
+
+```bash
+cd frontend
+npm test
+```
+
+Runs component specs and unit tests using [Vitest](https://vitest.dev/).
 
 ---
 
-## 🗺️ Roadmap to Production
+## 📚 Git Workflow & Contribution
 
-- [ ] Replace H2 with **PostgreSQL** + Flyway migrations
-- [ ] Integrate **Keycloak / Auth0** for real identity management
-- [ ] Add **Redis** for query result caching
-- [ ] Schema-per-tenant multi-tenancy with Hibernate
-- [ ] **Kubernetes** deployment manifests (Helm chart)
-- [ ] **Prometheus + Grafana** monitoring stack
-- [ ] Saved dashboards and scheduled PDF reports
-- [ ] Real-time streaming via WebSockets (live tower data)
+To learn about our branch strategy, Conventional Commits specification, pull request lifecycle, and Git commands for TeleMind development, please review:
 
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit your changes: `git commit -m 'feat: add your feature'`
-4. Push to the branch: `git push origin feature/your-feature`
-5. Open a Pull Request
+👉 **[TeleMind Git Workflow & Developer Documentation (GIT_DOCS.md)](GIT_DOCS.md)**
 
 ---
 
@@ -362,6 +430,4 @@ Tests include:
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
 
----
-
-<p align="center">Built with ❤️ for the Telecom Industry</p>
+<p align="center">Built with ❤️ for High-Performance Telecom Analytics</p>

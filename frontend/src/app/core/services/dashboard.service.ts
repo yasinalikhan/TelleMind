@@ -102,6 +102,18 @@ export class DashboardService {
     );
   }
 
+  saveWorkspace(name: string, layout: string, id?: number): Observable<DashboardConfig> {
+    const payload: any = { name, layoutConfig: layout };
+    if (id) {
+      payload.id = id;
+    }
+    return this.http.post<DashboardConfig>(
+      `${this.dashboardsUrl}/save`,
+      payload,
+      { headers: this.getHeaders() }
+    );
+  }
+
   deleteDashboard(id: number): Observable<any> {
     return this.http.delete(`${this.dashboardsUrl}/${id}`, { headers: this.getHeaders() });
   }

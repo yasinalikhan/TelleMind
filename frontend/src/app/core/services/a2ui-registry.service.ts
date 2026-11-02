@@ -3,6 +3,8 @@ import { KpiComponent } from '../../shared/components/a2ui-kpi/kpi.component';
 import { ChartComponent } from '../../shared/components/a2ui-chart/chart.component';
 import { TableComponent } from '../../shared/components/a2ui-table/table.component';
 import { MapComponent } from '../../shared/components/a2ui-map/map.component';
+import { GoogleMapComponent } from '../../shared/components/a2ui-google-map/google-map.component';
+import { LinkAnalysisComponent } from '../../shared/components/a2ui-link-analysis/link-analysis.component';
 import { FilterComponent } from '../../shared/components/a2ui-filter/filter.component';
 
 @Injectable({
@@ -14,6 +16,9 @@ export class A2UIRegistryService {
     'chart': ChartComponent,
     'table': TableComponent,
     'map': MapComponent,
+    'google-map': GoogleMapComponent,
+    'link-analysis': LinkAnalysisComponent,
+    'network': LinkAnalysisComponent,
     'filter': FilterComponent
   };
 

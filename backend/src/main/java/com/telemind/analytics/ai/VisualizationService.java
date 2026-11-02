@@ -26,7 +26,110 @@ public class VisualizationService {
         Set<String> columns = firstRow.keySet();
         int rowCount = data.size();
 
-        // 1. KPI Card: single row, single column (numeric or count) OR explicitly asked "how many" / "total" with a single value
+        // 1a. Google Maps Geospatial Studio Component
+        if (q.contains("google map") || q.contains("gis") || q.contains("tower coordinates") || q.contains("telecom coverage") || q.contains("base station")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("title", "Google Maps Telecom Geospatial Center");
+            props.put("data", data);
+            return new VisualizationDecision("google-map", "Google Maps Geospatial Network", props, Collections.emptyList());
+        }
+
+        // 1b. Link Analysis / Network Graph Component
+        if (q.contains("link analysis") || q.contains("network graph") || q.contains("caller graph") || q.contains("fraud ring") || q.contains("cdr graph") || q.contains("handoff") || q.contains("connections")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("title", "Telecom Link Analysis & Relationship Graph");
+            props.put("data", data);
+            return new VisualizationDecision("link-analysis", "Telecom Link Analysis Graph", props, Collections.emptyList());
+        }
+
+        // 1c. Specialized Top BI Charts (Radar, Treemap, Funnel, Waterfall, Boxplot, Bullet, Candlestick, Polar, Sankey, Sparkline, Chord)
+        if (q.contains("radar") || q.contains("spider")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("chartType", "radar");
+            props.put("title", "Network Capability Radar Profile");
+            props.put("data", data);
+            return new VisualizationDecision("chart", "Network Radar Profile", props, Collections.emptyList());
+        }
+        if (q.contains("treemap") || q.contains("hierarchical")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("chartType", "treemap");
+            props.put("title", "Market Share Treemap Composition");
+            props.put("data", data);
+            return new VisualizationDecision("chart", "Market Share Treemap", props, Collections.emptyList());
+        }
+        if (q.contains("funnel") || q.contains("conversion") || q.contains("pipeline")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("chartType", "funnel");
+            props.put("title", "Subscriber Conversion Funnel");
+            props.put("data", data);
+            return new VisualizationDecision("chart", "Subscriber Funnel", props, Collections.emptyList());
+        }
+        if (q.contains("waterfall") || q.contains("variance") || q.contains("financial walk")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("chartType", "waterfall");
+            props.put("title", "Revenue Variance Waterfall Walk");
+            props.put("data", data);
+            return new VisualizationDecision("chart", "Financial Waterfall", props, Collections.emptyList());
+        }
+        if (q.contains("bullet") || q.contains("benchmark") || q.contains("sla target")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("chartType", "bullet");
+            props.put("title", "Target SLA Bullet Benchmark");
+            props.put("data", data);
+            return new VisualizationDecision("chart", "Bullet SLA Benchmark", props, Collections.emptyList());
+        }
+        if (q.contains("candlestick") || q.contains("ohlc") || q.contains("volatility")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("chartType", "candlestick");
+            props.put("title", "Traffic Volatility Candlestick (OHLC)");
+            props.put("data", data);
+            return new VisualizationDecision("chart", "Traffic Candlestick", props, Collections.emptyList());
+        }
+        if (q.contains("polar") || q.contains("rose chart")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("chartType", "polar");
+            props.put("title", "Polar Usage Distribution");
+            props.put("data", data);
+            return new VisualizationDecision("chart", "Polar Area Distribution", props, Collections.emptyList());
+        }
+        if (q.contains("sankey") || q.contains("flow")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("chartType", "sankey");
+            props.put("title", "Network Traffic Sankey Flow");
+            props.put("data", data);
+            return new VisualizationDecision("chart", "Sankey Flow Diagram", props, Collections.emptyList());
+        }
+        if (q.contains("horizontal bar") || q.contains("ranking") || q.contains("leaderboard")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("chartType", "horizontal_bar");
+            props.put("title", "Regional Leaderboard Ranking");
+            props.put("xAxis", "region");
+            props.put("yAxis", "amount");
+            props.put("data", data);
+            return new VisualizationDecision("chart", "Leaderboard Ranking", props, Collections.emptyList());
+        }
+
+        // 1. Gauge Meter: if question mentions gauge/percent/rate/health/efficiency/sla and there is a single numeric value in the result
+        if (rowCount == 1) {
+            String numericCol = null;
+            for (String col : columns) {
+                if (col.equals("tenant_id") || col.equals("id")) continue;
+                if (firstRow.get(col) instanceof Number) {
+                    numericCol = col;
+                    break;
+                }
+            }
+            if (numericCol != null && (q.contains("gauge") || q.contains("percent") || q.contains("rate") || q.contains("health") || q.contains("efficiency") || q.contains("sla"))) {
+                Map<String, Object> props = new HashMap<>();
+                props.put("chartType", "gauge");
+                props.put("title", formatTitle(numericCol) + " Index");
+                props.put("valueKey", numericCol);
+                props.put("data", data);
+                return new VisualizationDecision("chart", formatTitle(numericCol) + " Gauge", props, Collections.emptyList());
+            }
+        }
+
+        // 1b. KPI Card: single row, single column (numeric or count) OR explicitly asked "how many" / "total" with a single value
         if (rowCount == 1 && columns.size() == 1) {
             String colName = columns.iterator().next();
             Object val = firstRow.get(colName);
@@ -35,6 +138,38 @@ public class VisualizationService {
             props.put("value", val);
             props.put("metric", colName);
             return new VisualizationDecision("kpi", formatTitle(colName), props, Collections.emptyList());
+        }
+
+        // 1c. Scatter Plot: if query asks for correlation/scatter/vs and there are at least two numeric fields
+        List<String> numericCols = new ArrayList<>();
+        for (String col : columns) {
+            if (col.equals("tenant_id") || col.equals("id")) continue;
+            if (firstRow.get(col) instanceof Number) {
+                numericCols.add(col);
+            }
+        }
+        if (numericCols.size() >= 2 && (q.contains("scatter") || q.contains(" vs ") || q.contains("correlation") || q.contains("relationship") || q.contains("bubble"))) {
+            String xAxis = numericCols.get(0);
+            String yAxis = numericCols.get(1);
+            // Re-order based on query string keywords
+            for (String col : numericCols) {
+                if (q.contains(col.toLowerCase() + " vs") || q.contains("show " + col.toLowerCase())) {
+                    xAxis = col;
+                } else if (q.contains("vs " + col.toLowerCase()) || q.contains("and " + col.toLowerCase())) {
+                    yAxis = col;
+                }
+            }
+            if (xAxis.equals(yAxis)) {
+                String finalX = xAxis;
+                yAxis = numericCols.stream().filter(c -> !c.equals(finalX)).findFirst().orElse(yAxis);
+            }
+            Map<String, Object> props = new HashMap<>();
+            props.put("chartType", "scatter");
+            props.put("title", formatTitle(xAxis) + " vs " + formatTitle(yAxis));
+            props.put("xAxis", xAxis);
+            props.put("yAxis", yAxis);
+            props.put("data", data);
+            return new VisualizationDecision("chart", formatTitle(xAxis) + " vs " + formatTitle(yAxis), props, Collections.emptyList());
         }
 
         // 2. Heatmap: if question contains "heatmap"
@@ -89,21 +224,30 @@ public class VisualizationService {
             return new VisualizationDecision("chart", "Daily Analytics Trend", props, Collections.emptyList());
         }
 
-        // 5. Pie Chart: percentage distribution (e.g. by plan or status) and relatively few rows
-        if ((columns.contains("plan") || columns.contains("status")) && rowCount <= 10) {
-            String labelCol = columns.contains("plan") ? "plan" : "status";
-            String valCol = columns.stream()
-                    .filter(c -> !c.equals(labelCol) && !c.equals("tenant_id"))
-                    .findFirst()
-                    .orElse("count");
+        // 5. Pie / Donut Chart: percentage distribution (1 string/categorical + 1 numeric, <= 10 rows)
+        List<String> categoricalCols = new ArrayList<>();
+        List<String> valueCols = new ArrayList<>();
+        for (String col : columns) {
+            if (col.equals("tenant_id") || col.equals("id")) continue;
+            Object val = firstRow.get(col);
+            if (val instanceof Number) {
+                valueCols.add(col);
+            } else {
+                categoricalCols.add(col);
+            }
+        }
+        if (!categoricalCols.isEmpty() && !valueCols.isEmpty() && rowCount <= 10) {
+            boolean useDonut = q.contains("donut") || q.contains("share") || q.contains("proportion") || q.contains("ratio");
+            String labelCol = categoricalCols.get(0);
+            String valCol = valueCols.get(0);
 
             Map<String, Object> props = new HashMap<>();
-            props.put("chartType", "pie");
-            props.put("title", "Subscriber Plan Distribution");
+            props.put("chartType", useDonut ? "donut" : "pie");
+            props.put("title", formatTitle(labelCol) + (useDonut ? " Share" : " Distribution"));
             props.put("labelKey", labelCol);
             props.put("valueKey", valCol);
             props.put("data", data);
-            return new VisualizationDecision("chart", "Distribution", props, Collections.emptyList());
+            return new VisualizationDecision("chart", formatTitle(labelCol) + (useDonut ? " Donut Share View" : " Distribution"), props, Collections.emptyList());
         }
 
         // 6. Bar Chart: category comparison (e.g. revenue by region)

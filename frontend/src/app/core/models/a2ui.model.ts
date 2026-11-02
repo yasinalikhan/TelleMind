@@ -13,7 +13,7 @@ export interface A2UIPage {
 
 export interface A2UIComponent {
   id: string;
-  type: 'kpi' | 'chart' | 'table' | 'form' | 'filter' | 'map' | 'card';
+  type: 'kpi' | 'chart' | 'table' | 'form' | 'filter' | 'map' | 'card' | 'google-map' | 'link-analysis' | 'network';
   props: any;
   events?: A2UIEvent[];
 }

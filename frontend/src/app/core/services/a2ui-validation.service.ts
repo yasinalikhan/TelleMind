@@ -5,7 +5,7 @@ import { A2UIResponse, A2UIComponent } from '../models/a2ui.model';
   providedIn: 'root'
 })
 export class A2UIValidationService {
-  private allowedTypes = ['kpi', 'chart', 'table', 'form', 'filter', 'map', 'card'];
+  private allowedTypes = ['kpi', 'chart', 'table', 'form', 'filter', 'map', 'card', 'google-map', 'link-analysis', 'network'];
   private allowedActions = ['OPEN_PAGE', 'DRILL_DOWN', 'FILTER_DATA', 'CALL_API', 'EXPORT_DATA', 'REFRESH'];
 
   validateResponse(response: any): A2UIResponse {
