@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, effect, HostListener, computed } from '@angular/core';
+import { Component, OnInit, inject, signal, effect, HostListener, computed, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DashboardService, DashboardConfig } from './core/services/dashboard.service';
@@ -8,6 +8,7 @@ import { A2UIValidationService } from './core/services/a2ui-validation.service';
 import { A2UIActionService } from './core/services/a2ui-action.service';
 import { A2UIResponse, A2UIComponent } from './core/models/a2ui.model';
 import { DatasetService, CustomDataset } from './core/services/dataset.service';
+import { QueryService, SavedQuery } from './core/services/query.service';
 import { ChartComponent } from './shared/components/a2ui-chart/chart.component';
 import { GoogleMapComponent } from './shared/components/a2ui-google-map/google-map.component';
 import { LinkAnalysisComponent } from './shared/components/a2ui-link-analysis/link-analysis.component';
@@ -16,6 +17,12 @@ import { KpiComponent } from './shared/components/a2ui-kpi/kpi.component';
 import { MapComponent } from './shared/components/a2ui-map/map.component';
 
 export type StudioTab = 'canvas' | 'visual_gallery' | 'google_maps' | 'link_analysis' | 'data_hub' | 'ai_copilot';
+
+export interface SqlSuggestion {
+  label: string;
+  kind: 'keyword' | 'table' | 'column' | 'func';
+  detail: string;
+}
 
 @Component({
   selector: 'app-root',
@@ -35,11 +42,14 @@ export type StudioTab = 'canvas' | 'visual_gallery' | 'google_maps' | 'link_anal
 })
 export class App implements OnInit {
   protected readonly dashboardService = inject(DashboardService);
+  protected readonly queryService = inject(QueryService);
   private readonly aiService = inject(AiService);
   private readonly registry = inject(A2UIRegistryService);
   private readonly validator = inject(A2UIValidationService);
   private readonly actionService = inject(A2UIActionService);
   private readonly datasetService = inject(DatasetService);
+
+  @ViewChild('sqlTextarea') sqlTextareaRef?: ElementRef<HTMLTextAreaElement>;
 
   constructor() {
     effect(() => {
@@ -47,7 +57,7 @@ export class App implements OnInit {
       if (list.length > 0 && !this.dashboardService.activeDashboard()) {
         setTimeout(() => {
           if (this.dashboardService.dashboards().length > 0 && !this.dashboardService.activeDashboard()) {
-            this.selectDashboard(this.dashboardService.dashboards()[0]);
+            this.dashboardService.restoreActiveWorkspace();
           }
         });
       }
@@ -65,10 +75,24 @@ export class App implements OnInit {
   password = signal('admin123');
   selectedTenant = signal(localStorage.getItem('tenantId') || 'tenant_1');
 
+  // AI Copilot Input Mode: 'sql' or 'natural'
+  aiInputMode = signal<'natural' | 'sql'>('sql');
+
   // Natural Language & AI Signals
   queryText = signal('');
+  sqlEditorValue = signal<string>('SELECT region, SUM(amount) AS amount FROM revenue GROUP BY region ORDER BY amount DESC;');
   showSql = signal(false);
   lastQueryResponse = signal<A2UIResponse | null>(null);
+
+  // SQL Keyword Autocomplete Signals
+  showAutocomplete = signal<boolean>(false);
+  sqlSuggestions = signal<SqlSuggestion[]>([]);
+  activeSuggestionIndex = signal<number>(0);
+  currentWordPrefix = '';
+  wordStartIndex = 0;
+
+  // Selected Widget for Sizing Controls (Width, Height, Layout)
+  selectedWidgetId = signal<string | null>(null);
 
   // Workspace CRUD & Menu Signals
   newDashboardName = signal('');
@@ -80,13 +104,28 @@ export class App implements OnInit {
   toastMessage = signal<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   private toastTimeout: any = null;
 
-  // Add Widget Modal
+  // Add Widget Modal & Gallery
   showAddWidgetModal = signal<boolean>(false);
   galleryCategory = signal<string>('all');
 
   // Drag and Drop tracking variables
   draggedIndex: number | null = null;
   dragOverIndex = signal<number | null>(null);
+
+  // Save Query Modal Signals
+  showSaveQueryModal = signal<boolean>(false);
+  saveQueryTitle = signal<string>('');
+  saveQueryCategory = signal<string>('Financial');
+  saveQueryDesc = signal<string>('');
+  savedQueriesDrawerOpen = signal<boolean>(false);
+
+  // Save Generated Chart Modal Signals
+  showSaveChartModal = signal<boolean>(false);
+  chartToSave = signal<A2UIComponent | null>(null);
+  chartCustomTitle = signal<string>('');
+  chartTargetDashboardId = signal<number | 'active'>('active');
+  chartTargetColSpan = signal<number>(6);
+  chartTargetHeight = signal<number>(340);
 
   // Custom Datasets signals
   datasets = signal<CustomDataset[]>([]);
@@ -103,6 +142,54 @@ export class App implements OnInit {
   templatesOpen = signal(false);
   showNewWorkspace = signal(false);
 
+  // SQL Autocomplete Dictionaries
+  readonly sqlKeywords: string[] = [
+    'SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT', 'JOIN', 'LEFT JOIN', 'INNER JOIN', 'RIGHT JOIN',
+    'ON', 'AS', 'AND', 'OR', 'NOT', 'IN', 'BETWEEN', 'LIKE', 'IS NULL', 'IS NOT NULL', 'DESC', 'ASC', 'DISTINCT',
+    'COUNT(*)', 'SUM()', 'AVG()', 'MAX()', 'MIN()', 'ROUND()', 'CURRENT_DATE', 'INTERVAL', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END'
+  ];
+
+  readonly standardTables = [
+    { name: 'subscriber', desc: 'Subscriber MSISDNs, plans, status & recharge amount' },
+    { name: 'revenue', desc: 'Daily revenue records by date, region & service category' },
+    { name: 'usage', desc: 'Cell tower telemetry, bandwidth MB & voice minutes' },
+    { name: 'telecom_kpis', desc: 'Core SLA uptime, throughput & performance benchmarks' }
+  ];
+
+  readonly tableColumns: Record<string, string[]> = {
+    subscriber: ['msisdn', 'region', 'plan', 'status', 'recharge_amount', 'signup_date', 'tenant_id'],
+    revenue: ['date', 'region', 'amount', 'category', 'tenant_id'],
+    usage: ['tower', 'region', 'data_mb', 'voice_minutes', 'timestamp', 'tenant_id'],
+    telecom_kpis: ['kpi_name', 'category', 'metric_value', 'target_value', 'poor_threshold', 'fair_threshold', 'good_threshold', 'unit', 'status', 'recorded_date']
+  };
+
+  // 20+ Telecom Data Queries & Prompts Catalog
+  readonly telecomPresets = [
+    { icon: '📈', name: 'Revenue Trend (Line)', query: 'SELECT date, SUM(amount) AS amount FROM revenue GROUP BY date ORDER BY date', type: 'SQL', desc: 'Daily revenue trajectory' },
+    { icon: '📊', name: 'Regional Comparison (Bar)', query: 'SELECT region, SUM(amount) AS amount FROM revenue GROUP BY region ORDER BY amount DESC', type: 'SQL', desc: 'Provincial revenue ranking' },
+    { icon: '🏆', name: 'Top Subscribers (Leaderboard)', query: 'SELECT msisdn, region, recharge_amount FROM subscriber ORDER BY recharge_amount DESC LIMIT 10', type: 'SQL', desc: 'VIP highest recharge accounts' },
+    { icon: '📶', name: 'Traffic Mix (Stacked Bar)', query: 'SELECT region, SUM(data_mb) AS data_mb, SUM(voice_minutes) AS voice_minutes FROM usage GROUP BY region ORDER BY data_mb DESC', type: 'SQL', desc: 'Data vs Voice mix by region' },
+    { icon: '🥧', name: 'Tariff Plan Share (Pie)', query: 'SELECT plan, COUNT(*) AS count FROM subscriber GROUP BY plan ORDER BY count DESC', type: 'SQL', desc: 'Market share breakdown' },
+    { icon: '🍩', name: 'Subscription Composition (Donut)', query: 'Show subscriber plan share donut', type: 'NLP', desc: 'Donut chart with total aggregate' },
+    { icon: '🌊', name: 'Throughput Growth (Area)', query: 'SELECT date, SUM(amount) AS amount FROM revenue GROUP BY date ORDER BY date', type: 'SQL', desc: 'Cumulative throughput curve' },
+    { icon: '📉', name: '4G vs 5G Trajectory (Stacked Area)', query: 'Show 4G vs 5G traffic trajectory stacked area', type: 'NLP', desc: 'Multi-technology volume curve' },
+    { icon: '⁖', name: 'Recharge vs Usage (Scatter)', query: 'SELECT msisdn, recharge_amount FROM subscriber ORDER BY recharge_amount DESC LIMIT 20', type: 'SQL', desc: 'Correlation between recharge and consumption' },
+    { icon: '🫧', name: '3D Node Analysis (Bubble)', query: 'Show 3D node bubble analysis', type: 'NLP', desc: '3-metric bubble chart' },
+    { icon: '🔥', name: 'Tower Traffic (Heatmap)', query: 'SELECT region, tower, SUM(data_mb) AS data_mb FROM usage GROUP BY region, tower ORDER BY data_mb DESC', type: 'SQL', desc: 'Cell tower congestion matrix' },
+    { icon: '⏱', name: 'Core SLA Health (Gauge)', query: 'SELECT metric_value AS value FROM telecom_kpis WHERE category = \'SLA\' LIMIT 1', type: 'SQL', desc: 'Radial SLA speedometer' },
+    { icon: '🎯', name: 'Target SLA Benchmark (Bullet)', query: 'SELECT kpi_name, metric_value, target_value FROM telecom_kpis ORDER BY kpi_name', type: 'SQL', desc: 'Qualitative performance bands' },
+    { icon: '🕯', name: 'Bandwidth Volatility (Candlestick)', query: 'Show bandwidth volatility candlestick', type: 'NLP', desc: 'Peak network volatility (OHLC)' },
+    { icon: '🌹', name: 'Tower Directional Load (Polar)', query: 'Show tower directional polar load', type: 'NLP', desc: 'Rose polar load distribution' },
+    { icon: '🔀', name: 'Traffic Routing (Sankey)', query: 'Show network traffic routing sankey flow', type: 'NLP', desc: 'Multi-hop network transition flow' },
+    { icon: '⚡', name: 'Revenue Velocity (Sparkline)', query: 'Show weekly revenue velocity scorecard sparkline', type: 'NLP', desc: 'Trendline KPI scorecard' },
+    { icon: '🕸', name: 'Capability Profile (Radar)', query: 'Show network operational capability radar', type: 'NLP', desc: 'Spider evaluation across SLA & Coverage' },
+    { icon: '🗂', name: 'Market Share (Treemap)', query: 'SELECT region, SUM(amount) AS amount FROM revenue GROUP BY region ORDER BY amount DESC', type: 'SQL', desc: 'Nested rectangular market share' },
+    { icon: '⏳', name: 'Customer Funnel (Funnel)', query: 'SELECT status, COUNT(*) AS count FROM subscriber GROUP BY status ORDER BY count DESC', type: 'SQL', desc: 'Acquisition to retention pipeline' },
+    { icon: '🪜', name: 'Revenue Walk (Waterfall)', query: 'SELECT category, SUM(amount) AS amount FROM revenue GROUP BY category ORDER BY amount DESC', type: 'SQL', desc: 'Financial variance bridge' },
+    { icon: '🗺️', name: 'Geospatial Base Stations (Google Maps)', query: 'Display google map base stations', type: 'NLP', desc: 'Interactive geographic map' },
+    { icon: '🕸️', name: 'Fraud & Network Graph (Link Analysis)', query: 'Show link analysis caller network', type: 'NLP', desc: 'Caller relationship and fraud rings' }
+  ];
+
   @HostListener('window:keydown', ['$event'])
   handleKeyboardShortcuts(event: KeyboardEvent) {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
@@ -116,6 +203,9 @@ export class App implements OnInit {
     const target = event.target as HTMLElement;
     if (target && !target.closest('#workspace-menu-button') && !target.closest('#workspace-menu-dropdown')) {
       this.workspaceMenuOpen.set(false);
+    }
+    if (target && !target.closest('#sql-autocomplete-dropdown') && !target.closest('#sql-editor-textarea')) {
+      this.showAutocomplete.set(false);
     }
   }
 
@@ -176,7 +266,8 @@ export class App implements OnInit {
     if (this.dashboardService.token()) {
       this.dashboardService.loadDashboards();
       this.loadDatasets();
-      this.runQuery(this.suggestions[0]);
+      this.queryService.loadQueries();
+      this.dashboardService.restoreActiveWorkspace();
     }
   }
 
@@ -198,9 +289,10 @@ export class App implements OnInit {
       if (this.dashboardService.token()) {
         this.dashboardService.loadDashboards();
         this.loadDatasets();
-        this.runQuery(this.suggestions[0]);
+        this.queryService.loadQueries();
+        this.dashboardService.restoreActiveWorkspace();
       }
-    }, 1000);
+    }, 600);
   }
 
   onLogout() {
@@ -209,10 +301,16 @@ export class App implements OnInit {
     this.activePreviewDataset.set(null);
   }
 
+  // AI & Query Execution
+  setInputMode(mode: 'natural' | 'sql') {
+    this.aiInputMode.set(mode);
+    this.showAutocomplete.set(false);
+  }
+
   onSubmitQuery() {
-    const q = this.queryText().trim();
-    if (!q) return;
-    this.runQuery(q);
+    const query = this.aiInputMode() === 'sql' ? this.sqlEditorValue().trim() : this.queryText().trim();
+    if (!query) return;
+    this.runQuery(query);
   }
 
   toggleSqlView() {
@@ -220,7 +318,16 @@ export class App implements OnInit {
   }
 
   runQuery(text: string) {
-    this.queryText.set(text);
+    if (!text || !text.trim()) return;
+    const isSql = text.trim().toLowerCase().startsWith('select');
+    if (isSql) {
+      this.sqlEditorValue.set(text);
+      this.aiInputMode.set('sql');
+    } else {
+      this.queryText.set(text);
+      this.aiInputMode.set('natural');
+    }
+
     this.showSql.set(false);
     this.dashboardService.localFilters.set({});
     this.dashboardService.loading.set(true);
@@ -247,6 +354,479 @@ export class App implements OnInit {
     });
   }
 
+  // ==========================================================
+  // SQL KEYWORD & SCHEMA AUTOCOMPLETE ENGINE (IDE CAPABILITY)
+  // ==========================================================
+  onSqlInputChange(val: string, textarea?: HTMLTextAreaElement) {
+    this.sqlEditorValue.set(val);
+    if (!textarea) return;
+
+    const cursorPos = textarea.selectionStart;
+    const textBefore = val.slice(0, cursorPos);
+    const match = textBefore.match(/([a-zA-Z0-9_\.]+)$/);
+
+    if (!match) {
+      this.showAutocomplete.set(false);
+      return;
+    }
+
+    const token = match[1];
+    this.currentWordPrefix = token;
+    this.wordStartIndex = cursorPos - token.length;
+
+    const suggestions: SqlSuggestion[] = [];
+    const tokenLower = token.toLowerCase();
+
+    // 1. Match SQL Keywords
+    for (const kw of this.sqlKeywords) {
+      if (kw.toLowerCase().startsWith(tokenLower)) {
+        suggestions.push({ label: kw, kind: 'keyword', detail: 'SQL Keyword' });
+      }
+    }
+
+    // 2. Match Tables
+    for (const t of this.standardTables) {
+      if (t.name.toLowerCase().startsWith(tokenLower)) {
+        suggestions.push({ label: t.name, kind: 'table', detail: t.desc });
+      }
+    }
+    for (const ds of this.datasets()) {
+      if (ds.tableName.toLowerCase().startsWith(tokenLower)) {
+        suggestions.push({ label: ds.tableName, kind: 'table', detail: `Custom Dataset (${ds.rowCount} rows)` });
+      }
+    }
+
+    // 3. Match Columns
+    for (const [tbl, cols] of Object.entries(this.tableColumns)) {
+      for (const col of cols) {
+        if (col.toLowerCase().startsWith(tokenLower) && !suggestions.some(s => s.label === col)) {
+          suggestions.push({ label: col, kind: 'column', detail: `Column in ${tbl}` });
+        }
+      }
+    }
+
+    if (suggestions.length > 0) {
+      this.sqlSuggestions.set(suggestions.slice(0, 10));
+      this.activeSuggestionIndex.set(0);
+      this.showAutocomplete.set(true);
+    } else {
+      this.showAutocomplete.set(false);
+    }
+  }
+
+  onSqlKeyDown(event: KeyboardEvent, textarea?: HTMLTextAreaElement) {
+    if (!this.showAutocomplete()) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      const next = (this.activeSuggestionIndex() + 1) % this.sqlSuggestions().length;
+      this.activeSuggestionIndex.set(next);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      const prev = (this.activeSuggestionIndex() - 1 + this.sqlSuggestions().length) % this.sqlSuggestions().length;
+      this.activeSuggestionIndex.set(prev);
+    } else if (event.key === 'Enter' || event.key === 'Tab') {
+      event.preventDefault();
+      const selected = this.sqlSuggestions()[this.activeSuggestionIndex()];
+      if (selected) {
+        this.selectSuggestion(selected, textarea);
+      }
+    } else if (event.key === 'Escape') {
+      this.showAutocomplete.set(false);
+    }
+  }
+
+  selectSuggestion(suggestion: SqlSuggestion, textarea?: HTMLTextAreaElement) {
+    const val = this.sqlEditorValue();
+    const before = val.slice(0, this.wordStartIndex);
+    const after = val.slice(this.wordStartIndex + this.currentWordPrefix.length);
+    const newText = before + suggestion.label + (suggestion.kind === 'keyword' ? ' ' : '') + after;
+
+    this.sqlEditorValue.set(newText);
+    this.showAutocomplete.set(false);
+
+    if (textarea) {
+      setTimeout(() => {
+        textarea.focus();
+        const newPos = before.length + suggestion.label.length + (suggestion.kind === 'keyword' ? 1 : 0);
+        textarea.setSelectionRange(newPos, newPos);
+      });
+    }
+  }
+
+  insertKeyword(keyword: string) {
+    const current = this.sqlEditorValue().trim();
+    this.sqlEditorValue.set(`${current} ${keyword} `);
+    if (this.sqlTextareaRef?.nativeElement) {
+      this.sqlTextareaRef.nativeElement.focus();
+    }
+  }
+
+  formatSql() {
+    let sql = this.sqlEditorValue().trim();
+    const keywords = ['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT', 'LEFT JOIN', 'INNER JOIN', 'JOIN'];
+    keywords.forEach(kw => {
+      const reg = new RegExp(`\\b${kw}\\b`, 'gi');
+      sql = sql.replace(reg, `\n${kw}`);
+    });
+    this.sqlEditorValue.set(sql.trim());
+  }
+
+  // ==========================================================
+  // SAVED QUERIES MANAGEMENT (CRUD & 1-CLICK EXECUTION)
+  // ==========================================================
+  toggleSavedQueriesDrawer() {
+    this.savedQueriesDrawerOpen.update(v => !v);
+  }
+
+  openSaveQueryModal(presetQuery?: string) {
+    if (presetQuery) {
+      this.sqlEditorValue.set(presetQuery);
+      this.aiInputMode.set('sql');
+    }
+    const query = this.aiInputMode() === 'sql' ? this.sqlEditorValue().trim() : this.queryText().trim();
+    if (!query) {
+      this.showToast('info', 'Please write a query before saving.');
+      return;
+    }
+    const defaultTitle = this.aiInputMode() === 'sql' ? 'Telecom SQL Analysis' : this.queryText().slice(0, 40);
+    this.saveQueryTitle.set(defaultTitle);
+    this.saveQueryDesc.set('');
+    this.saveQueryCategory.set('Financial');
+    this.showSaveQueryModal.set(true);
+  }
+
+  closeSaveQueryModal() {
+    this.showSaveQueryModal.set(false);
+  }
+
+  confirmSaveQuery() {
+    const title = this.saveQueryTitle().trim();
+    if (!title) return;
+
+    const queryText = this.aiInputMode() === 'sql' ? this.sqlEditorValue().trim() : this.queryText().trim();
+    const queryType = this.aiInputMode() === 'sql' ? 'SQL' : 'NATURAL_LANGUAGE';
+
+    this.queryService.saveQuery({
+      title,
+      queryText,
+      queryType,
+      description: this.saveQueryDesc(),
+      category: this.saveQueryCategory(),
+      chartType: 'chart'
+    }).subscribe({
+      next: () => {
+        this.showToast('success', `Query "${title}" saved successfully!`);
+        this.closeSaveQueryModal();
+      },
+      error: (err) => {
+        console.error('Failed to save query:', err);
+        this.showToast('error', 'Failed to save query.');
+      }
+    });
+  }
+
+  runSavedQuery(q: SavedQuery) {
+    if (q.queryType === 'SQL') {
+      this.sqlEditorValue.set(q.queryText);
+      this.aiInputMode.set('sql');
+    } else {
+      this.queryText.set(q.queryText);
+      this.aiInputMode.set('natural');
+    }
+    this.runQuery(q.queryText);
+    this.showToast('info', `Running saved query: "${q.title}"`);
+    this.savedQueriesDrawerOpen.set(false);
+  }
+
+  deleteSavedQuery(q: SavedQuery, event: MouseEvent) {
+    event.stopPropagation();
+    if (!q.id) return;
+    if (!confirm(`Delete saved query "${q.title}"?`)) return;
+
+    this.queryService.deleteQuery(q.id).subscribe({
+      next: () => {
+        this.showToast('info', `Query "${q.title}" deleted.`);
+      }
+    });
+  }
+
+  // ==========================================================
+  // SAVE GENERATED CHART TO DASHBOARD / WORKSPACE
+  // ==========================================================
+  openSaveChartModal(comp: A2UIComponent) {
+    this.chartToSave.set(comp);
+    this.chartCustomTitle.set(comp.props?.title || 'Analytics Metric');
+    this.chartTargetColSpan.set(comp.props?.colSpan || 6);
+    this.chartTargetHeight.set(comp.props?.widgetHeight || 340);
+    this.chartTargetDashboardId.set('active');
+    this.showSaveChartModal.set(true);
+  }
+
+  closeSaveChartModal() {
+    this.showSaveChartModal.set(false);
+    this.chartToSave.set(null);
+  }
+
+  confirmSaveChartToDashboard() {
+    const comp = this.chartToSave();
+    if (!comp) return;
+
+    const updatedComp: A2UIComponent = {
+      ...JSON.parse(JSON.stringify(comp)),
+      id: `saved_widget_${Date.now()}`,
+      props: {
+        ...comp.props,
+        title: this.chartCustomTitle() || comp.props?.title,
+        colSpan: this.chartTargetColSpan(),
+        widgetHeight: this.chartTargetHeight()
+      }
+    };
+
+    const targetId = this.chartTargetDashboardId();
+
+    if (targetId === 'active' || !this.dashboardService.activeDashboard()) {
+      // Append to active canvas
+      this.appendComponentToWorkspace(updatedComp);
+      this.showToast('success', `Chart "${updatedComp.props.title}" added to active canvas!`);
+      this.closeSaveChartModal();
+      this.setStudioTab('canvas');
+    } else {
+      // Find target dashboard config
+      const db = this.dashboardService.dashboards().find(d => d.id === targetId);
+      if (db) {
+        let comps: A2UIComponent[] = [];
+        try {
+          comps = JSON.parse(db.layoutConfig);
+        } catch (e) {
+          comps = [];
+        }
+        comps.push(updatedComp);
+        this.dashboardService.saveWorkspace(db.name, JSON.stringify(comps), db.id).subscribe({
+          next: (savedDb) => {
+            this.showToast('success', `Chart saved to dashboard "${savedDb.name}"!`);
+            this.closeSaveChartModal();
+            this.selectDashboard(savedDb);
+            this.setStudioTab('canvas');
+          },
+          error: (err) => {
+            console.error('Failed to save chart to dashboard:', err);
+            this.showToast('error', 'Failed to save chart to target dashboard.');
+          }
+        });
+      }
+    }
+  }
+
+  saveAsStandaloneKpi(comp: A2UIComponent) {
+    const kpiComp: A2UIComponent = {
+      id: `kpi_${Date.now()}`,
+      type: 'kpi',
+      props: {
+        title: comp.props?.title || 'Key KPI Indicator',
+        value: comp.props?.data?.[0]?.amount || comp.props?.data?.[0]?.value || 99.8,
+        metric: comp.props?.title || 'SLA Target',
+        colSpan: 4,
+        widgetHeight: 260
+      }
+    };
+    this.appendComponentToWorkspace(kpiComp);
+    this.showToast('success', 'Saved as standalone KPI card in active workspace!');
+    this.setStudioTab('canvas');
+  }
+
+  // ==========================================================
+  // WORKSPACE REDESIGN: DRAG & DROP & FLEXIBLE SIZING
+  // ==========================================================
+  selectWidget(compId: string, event?: MouseEvent) {
+    if (event) event.stopPropagation();
+    this.selectedWidgetId.set(this.selectedWidgetId() === compId ? null : compId);
+  }
+
+  changeColSpan(compId: string, delta: number) {
+    const activePage = this.dashboardService.activePage();
+    if (!activePage) return;
+
+    const comp = activePage.page.components.find(c => c.id === compId);
+    if (comp) {
+      if (!comp.props) comp.props = {};
+      const currentSpan = comp.props.colSpan || 6;
+      comp.props.colSpan = Math.max(3, Math.min(12, currentSpan + delta));
+      this.dashboardService.activePage.set({ ...activePage });
+      this.hasUnsavedChanges.set(true);
+    }
+  }
+
+  setColSpan(compId: string, cols: number) {
+    const activePage = this.dashboardService.activePage();
+    if (!activePage) return;
+
+    const comp = activePage.page.components.find(c => c.id === compId);
+    if (comp) {
+      if (!comp.props) comp.props = {};
+      comp.props.colSpan = Math.max(3, Math.min(12, cols));
+      this.dashboardService.activePage.set({ ...activePage });
+      this.hasUnsavedChanges.set(true);
+    }
+  }
+
+  changeWidgetHeight(compId: string, delta: number) {
+    const activePage = this.dashboardService.activePage();
+    if (!activePage) return;
+
+    const comp = activePage.page.components.find(c => c.id === compId);
+    if (comp) {
+      if (!comp.props) comp.props = {};
+      const currentHeight = comp.props.widgetHeight || 340;
+      comp.props.widgetHeight = Math.max(220, Math.min(700, currentHeight + delta));
+      this.dashboardService.activePage.set({ ...activePage });
+      this.hasUnsavedChanges.set(true);
+    }
+  }
+
+  setWidgetHeight(compId: string, heightPx: number) {
+    const activePage = this.dashboardService.activePage();
+    if (!activePage) return;
+
+    const comp = activePage.page.components.find(c => c.id === compId);
+    if (comp) {
+      if (!comp.props) comp.props = {};
+      comp.props.widgetHeight = heightPx;
+      this.dashboardService.activePage.set({ ...activePage });
+      this.hasUnsavedChanges.set(true);
+    }
+  }
+
+  duplicateComponent(comp: A2UIComponent) {
+    const copy: A2UIComponent = JSON.parse(JSON.stringify(comp));
+    copy.id = `${copy.type}_${Date.now()}`;
+    copy.props.title = `${copy.props.title} (Copy)`;
+    this.appendComponentToWorkspace(copy);
+    this.showToast('success', `Duplicated "${copy.props.title}"`);
+  }
+
+  moveComponentHorizontal(index: number, direction: 'left' | 'right') {
+    const activePage = this.dashboardService.activePage();
+    if (!activePage) return;
+
+    const components = [...activePage.page.components];
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+
+    if (targetIndex >= 0 && targetIndex < components.length) {
+      const temp = components[index];
+      components[index] = components[targetIndex];
+      components[targetIndex] = temp;
+      activePage.page.components = components;
+      this.dashboardService.activePage.set({ ...activePage });
+      this.hasUnsavedChanges.set(true);
+    }
+  }
+
+  moveComponent(index: number, direction: 'up' | 'down') {
+    const activePage = this.dashboardService.activePage();
+    if (!activePage) return;
+
+    const components = [...activePage.page.components];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+
+    if (targetIndex >= 0 && targetIndex < components.length) {
+      const temp = components[index];
+      components[index] = components[targetIndex];
+      components[targetIndex] = temp;
+      activePage.page.components = components;
+      this.dashboardService.activePage.set({ ...activePage });
+      this.hasUnsavedChanges.set(true);
+    }
+  }
+
+  // Drag & Drop
+  onDragStart(event: DragEvent, index: number) {
+    this.draggedIndex = index;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', index.toString());
+    }
+  }
+
+  onDragOver(event: DragEvent, index: number) {
+    event.preventDefault();
+    this.dragOverIndex.set(index);
+  }
+
+  onDragLeave() {
+    this.dragOverIndex.set(null);
+  }
+
+  onDrop(event: DragEvent, targetIndex: number) {
+    event.preventDefault();
+    this.dragOverIndex.set(null);
+    if (this.draggedIndex === null || this.draggedIndex === targetIndex) return;
+
+    const activePage = this.dashboardService.activePage();
+    if (!activePage) return;
+
+    const components = [...activePage.page.components];
+    const dragged = components[this.draggedIndex];
+    components.splice(this.draggedIndex, 1);
+    components.splice(targetIndex, 0, dragged);
+
+    activePage.page.components = components;
+    this.dashboardService.activePage.set({ ...activePage });
+    this.hasUnsavedChanges.set(true);
+    this.dashboardService.editMode.set(true);
+    this.draggedIndex = null;
+  }
+
+  getColSpanClass(comp: A2UIComponent) {
+    const colSpan = comp.props?.colSpan;
+    if (colSpan) {
+      const classes: Record<number, string> = {
+        3: 'lg:col-span-3',
+        4: 'lg:col-span-4',
+        5: 'lg:col-span-5',
+        6: 'lg:col-span-6',
+        7: 'lg:col-span-7',
+        8: 'lg:col-span-8',
+        9: 'lg:col-span-9',
+        10: 'lg:col-span-10',
+        11: 'lg:col-span-11',
+        12: 'lg:col-span-12'
+      };
+      return classes[colSpan] || 'lg:col-span-6';
+    }
+    if (comp.type === 'google-map' || comp.type === 'link-analysis' || comp.type === 'network') return 'lg:col-span-12';
+    if (comp.type === 'map') return 'lg:col-span-7';
+    if (comp.type === 'table') return 'lg:col-span-6';
+    return 'lg:col-span-6';
+  }
+
+  // Preloaded Telecom 20 Charts Dataset Helper
+  loadPreloadedTelecomDataset() {
+    fetch('/telecom_20_charts_data.csv')
+      .then(res => res.text())
+      .then(csvText => {
+        const file = new File([csvText], 'telecom_20_charts_data.csv', { type: 'text/csv' });
+        this.dashboardService.loading.set(true);
+        this.datasetService.uploadDataset(file).subscribe({
+          next: (ds) => {
+            this.dashboardService.loading.set(false);
+            this.loadDatasets();
+            this.showToast('success', `Telecom 20 Charts Dataset "${ds.tableName}" preloaded and active!`);
+            this.previewDataset(ds);
+          },
+          error: (err) => {
+            this.dashboardService.loading.set(false);
+            console.error('Failed to preload dataset:', err);
+            this.showToast('error', 'Preloading dataset failed. Try manual upload in Data Hub.');
+          }
+        });
+      })
+      .catch(err => {
+        console.error('Failed to fetch telecom dataset:', err);
+        this.showToast('info', 'Telecom dataset ready in Data Hub.');
+      });
+  }
+
   switchTenant(tenant: string) {
     this.selectedTenant.set(tenant);
     localStorage.setItem('tenantId', tenant);
@@ -254,7 +834,8 @@ export class App implements OnInit {
     this.dashboardService.activeDashboard.set(null);
     this.dashboardService.loadDashboards();
     this.loadDatasets();
-    this.runQuery(this.queryText() || this.suggestions[0]);
+    this.queryService.loadQueries();
+    this.runQuery(this.sqlEditorValue());
   }
 
   loadDatasets() {
@@ -420,10 +1001,16 @@ export class App implements OnInit {
     this.lastQueryResponse.set(null);
     this.hasUnsavedChanges.set(false);
     this.workspaceMenuOpen.set(false);
+    this.selectedWidgetId.set(null);
 
     if (!db) {
       this.dashboardService.activePage.set(null);
+      this.dashboardService.setStoredActiveWorkspaceId(null);
       return;
+    }
+
+    if (db.id) {
+      this.dashboardService.setStoredActiveWorkspaceId(db.id);
     }
 
     try {
@@ -453,9 +1040,8 @@ export class App implements OnInit {
       next: (newDb) => {
         this.isSaving.set(false);
         this.newDashboardName.set('');
-        this.dashboardService.loadDashboards();
+        this.selectDashboard(newDb);
         this.showToast('success', `Workspace "${newDb.name}" created!`);
-        setTimeout(() => this.selectDashboard(newDb), 300);
       },
       error: (err) => {
         this.isSaving.set(false);
@@ -482,8 +1068,7 @@ export class App implements OnInit {
         this.isSaving.set(false);
         this.hasUnsavedChanges.set(false);
         this.dashboardService.editMode.set(false);
-        this.dashboardService.loadDashboards();
-        this.dashboardService.activeDashboard.set(updatedDb);
+        this.selectDashboard(updatedDb);
         this.showToast('success', `Workspace "${updatedDb.name}" saved!`);
       },
       error: (err) => {
@@ -502,8 +1087,12 @@ export class App implements OnInit {
 
     this.dashboardService.deleteDashboard(db.id).subscribe({
       next: () => {
-        this.selectDashboard(null);
-        this.dashboardService.loadDashboards();
+        const remaining = this.dashboardService.dashboards();
+        if (remaining.length > 0) {
+          this.selectDashboard(remaining[0]);
+        } else {
+          this.selectDashboard(null);
+        }
         this.showToast('info', 'Workspace deleted.');
       },
       error: (err) => {
@@ -516,14 +1105,14 @@ export class App implements OnInit {
     this.dashboardService.editMode.update(v => !v);
   }
 
-  // 1-Click Add Any Component to the Active Workspace
   addChartFromGallery(chartDef: any) {
     const newComp: A2UIComponent = {
       id: `widget_${chartDef.type}_${Date.now()}`,
       type: 'chart',
       props: {
         ...chartDef.sampleProps,
-        colSpan: 6
+        colSpan: 6,
+        widgetHeight: 340
       }
     };
     this.appendComponentToWorkspace(newComp);
@@ -537,7 +1126,8 @@ export class App implements OnInit {
       type: 'google-map',
       props: {
         title: 'Google Maps Telecom Geospatial Center',
-        colSpan: 12
+        colSpan: 12,
+        widgetHeight: 480
       }
     };
     this.appendComponentToWorkspace(newComp);
@@ -551,7 +1141,8 @@ export class App implements OnInit {
       type: 'link-analysis',
       props: {
         title: 'Telecom Link Analysis & Relationship Graph',
-        colSpan: 12
+        colSpan: 12,
+        widgetHeight: 480
       }
     };
     this.appendComponentToWorkspace(newComp);
@@ -582,6 +1173,7 @@ export class App implements OnInit {
     });
     this.hasUnsavedChanges.set(true);
     this.dashboardService.editMode.set(true);
+    this.selectedWidgetId.set(comp.id);
   }
 
   addToDashboard() {
@@ -603,6 +1195,9 @@ export class App implements OnInit {
       if (!copy.props) copy.props = {};
       if (!copy.props.colSpan) {
         copy.props.colSpan = copy.type === 'map' || copy.type === 'google-map' || copy.type === 'link-analysis' ? 12 : (copy.type === 'table' ? 6 : 6);
+      }
+      if (!copy.props.widgetHeight) {
+        copy.props.widgetHeight = 340;
       }
       copy.id = `${copy.id}_${Date.now()}`;
       return copy;
@@ -632,101 +1227,11 @@ export class App implements OnInit {
     activePage.page.components = activePage.page.components.filter(c => c.id !== compId);
     this.dashboardService.activePage.set({ ...activePage });
     this.hasUnsavedChanges.set(true);
-  }
-
-  changeColSpan(compId: string, delta: number) {
-    const activePage = this.dashboardService.activePage();
-    if (!activePage) return;
-
-    const comp = activePage.page.components.find(c => c.id === compId);
-    if (comp) {
-      if (!comp.props) comp.props = {};
-      const currentSpan = comp.props.colSpan || 6;
-      comp.props.colSpan = Math.max(3, Math.min(12, currentSpan + delta));
-      this.dashboardService.activePage.set({ ...activePage });
-      this.hasUnsavedChanges.set(true);
+    if (this.selectedWidgetId() === compId) {
+      this.selectedWidgetId.set(null);
     }
   }
 
-  moveComponent(index: number, direction: 'up' | 'down') {
-    const activePage = this.dashboardService.activePage();
-    if (!activePage) return;
-
-    const components = [...activePage.page.components];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-
-    if (targetIndex >= 0 && targetIndex < components.length) {
-      const temp = components[index];
-      components[index] = components[targetIndex];
-      components[targetIndex] = temp;
-      activePage.page.components = components;
-      this.dashboardService.activePage.set({ ...activePage });
-      this.hasUnsavedChanges.set(true);
-    }
-  }
-
-  // Drag & Drop
-  onDragStart(event: DragEvent, index: number) {
-    this.draggedIndex = index;
-    if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', index.toString());
-    }
-  }
-
-  onDragOver(event: DragEvent, index: number) {
-    event.preventDefault();
-    this.dragOverIndex.set(index);
-  }
-
-  onDragLeave() {
-    this.dragOverIndex.set(null);
-  }
-
-  onDrop(event: DragEvent, targetIndex: number) {
-    event.preventDefault();
-    this.dragOverIndex.set(null);
-    if (this.draggedIndex === null || this.draggedIndex === targetIndex) return;
-
-    const activePage = this.dashboardService.activePage();
-    if (!activePage) return;
-
-    const components = [...activePage.page.components];
-    const dragged = components[this.draggedIndex];
-    components.splice(this.draggedIndex, 1);
-    components.splice(targetIndex, 0, dragged);
-
-    activePage.page.components = components;
-    this.dashboardService.activePage.set({ ...activePage });
-    this.hasUnsavedChanges.set(true);
-    this.dashboardService.editMode.set(true);
-    this.draggedIndex = null;
-  }
-
-  getColSpanClass(comp: A2UIComponent) {
-    const colSpan = comp.props?.colSpan;
-    if (colSpan) {
-      const classes: Record<number, string> = {
-        3: 'lg:col-span-3',
-        4: 'lg:col-span-4',
-        5: 'lg:col-span-5',
-        6: 'lg:col-span-6',
-        7: 'lg:col-span-7',
-        8: 'lg:col-span-8',
-        9: 'lg:col-span-9',
-        10: 'lg:col-span-10',
-        11: 'lg:col-span-11',
-        12: 'lg:col-span-12'
-      };
-      return classes[colSpan] || 'lg:col-span-6';
-    }
-    if (comp.type === 'google-map' || comp.type === 'link-analysis' || comp.type === 'network') return 'lg:col-span-12';
-    if (comp.type === 'map') return 'lg:col-span-7';
-    if (comp.type === 'table') return 'lg:col-span-5';
-    return 'lg:col-span-6';
-  }
-
-  // Export Utilities
   exportWorkspaceAsJson() {
     const page = this.dashboardService.activePage();
     if (!page) return;

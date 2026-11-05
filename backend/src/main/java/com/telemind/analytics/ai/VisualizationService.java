@@ -99,6 +99,43 @@ public class VisualizationService {
             props.put("data", data);
             return new VisualizationDecision("chart", "Sankey Flow Diagram", props, Collections.emptyList());
         }
+        if (q.contains("sparkline") || q.contains("velocity") || q.contains("scorecard")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("chartType", "sparkline");
+            props.put("title", "Weekly Revenue Velocity Scorecard");
+            props.put("data", data);
+            return new VisualizationDecision("chart", "Revenue Velocity Sparkline", props, Collections.emptyList());
+        }
+        if (q.contains("stacked bar") || q.contains("traffic mix")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("chartType", "stacked_bar");
+            props.put("title", "Regional Traffic Mix (Data, Voice, SMS)");
+            props.put("xAxis", "region");
+            props.put("data", data);
+            return new VisualizationDecision("chart", "Traffic Mix Stacked Bar", props, Collections.emptyList());
+        }
+        if (q.contains("stacked area") || q.contains("4g vs 5g") || q.contains("traffic trajectory")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("chartType", "stacked_area");
+            props.put("title", "4G vs 5G Traffic Trajectory Over Time");
+            props.put("xAxis", "date");
+            props.put("data", data);
+            return new VisualizationDecision("chart", "Network Traffic Trajectory", props, Collections.emptyList());
+        }
+        if (q.contains("boxplot") || q.contains("whisker") || q.contains("quartile") || q.contains("speed distribution")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("chartType", "boxplot");
+            props.put("title", "Network Latency & Speed Distribution");
+            props.put("data", data);
+            return new VisualizationDecision("chart", "Latency Boxplot Distribution", props, Collections.emptyList());
+        }
+        if (q.contains("chord") || q.contains("interconnect") || q.contains("dependency matrix")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("chartType", "chord");
+            props.put("title", "Provincial Interconnect Traffic Dependency");
+            props.put("data", data);
+            return new VisualizationDecision("chart", "Interconnect Chord Matrix", props, Collections.emptyList());
+        }
         if (q.contains("horizontal bar") || q.contains("ranking") || q.contains("leaderboard")) {
             Map<String, Object> props = new HashMap<>();
             props.put("chartType", "horizontal_bar");

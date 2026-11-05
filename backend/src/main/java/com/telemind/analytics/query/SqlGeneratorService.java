@@ -44,6 +44,13 @@ public class SqlGeneratorService {
         String tenantId = com.telemind.analytics.security.TenantContext.getCurrentTenant();
         validateCustomDatasetReference(question, tenantId);
 
+        // If user provided a direct SQL query, execute directly
+        String trimmed = question.trim();
+        if (trimmed.toLowerCase().startsWith("select")) {
+            log.info("Detected direct SQL query, bypassing translation: {}", trimmed);
+            return trimmed.replaceAll(";\\s*$", "");
+        }
+
         // Try Ollama/AI if configured (non-empty api key field, or Ollama doesn't need one)
         if (apiUrl != null && apiUrl.contains("11434")) {
             // Ollama — always try AI path
@@ -189,8 +196,63 @@ public class SqlGeneratorService {
             return "SELECT msisdn, region, plan, status, recharge_amount, signup_date FROM subscriber ORDER BY recharge_amount DESC";
         }
 
-        // Radar / Spider / Treemap / Funnel
-        if (q.contains("radar") || q.contains("spider") || q.contains("treemap") || q.contains("funnel") || q.contains("waterfall") || q.contains("bullet") || q.contains("candlestick") || q.contains("polar") || q.contains("sankey")) {
+        // Bullet SLA benchmark
+        if (q.contains("bullet") || q.contains("benchmark") || q.contains("sla target") || q.contains("kpi target")) {
+            return "SELECT kpi_name, metric_value, target_value FROM telecom_kpis ORDER BY kpi_name";
+        }
+
+        // Radial Gauge / Speedometer SLA
+        if (q.contains("gauge") || q.contains("speedometer") || q.contains("sla health") || q.contains("uptime percentage") || q.contains("network availability")) {
+            return "SELECT metric_value AS value FROM telecom_kpis WHERE category = 'SLA' LIMIT 1";
+        }
+
+        // Sparkline Weekly Velocity
+        if (q.contains("sparkline") || q.contains("velocity") || q.contains("scorecard")) {
+            return "SELECT date, SUM(amount) AS amount FROM revenue GROUP BY date ORDER BY date LIMIT 14";
+        }
+
+        // Funnel subscriber acquisition
+        if (q.contains("funnel") || q.contains("pipeline") || q.contains("conversion")) {
+            return "SELECT status, COUNT(*) AS count FROM subscriber GROUP BY status ORDER BY count DESC";
+        }
+
+        // Waterfall revenue variance walk
+        if (q.contains("waterfall") || q.contains("financial walk") || q.contains("revenue walk") || q.contains("variance")) {
+            return "SELECT category, SUM(amount) AS amount FROM revenue GROUP BY category ORDER BY amount DESC";
+        }
+
+        // Radar / Spider operational profile
+        if (q.contains("radar") || q.contains("spider") || q.contains("capability")) {
+            return "SELECT region, SUM(data_mb) AS data_mb, SUM(voice_minutes) AS voice_minutes FROM usage GROUP BY region ORDER BY data_mb DESC";
+        }
+
+        // Treemap market composition
+        if (q.contains("treemap") || q.contains("market composition")) {
+            return "SELECT region, SUM(amount) AS amount FROM revenue GROUP BY region ORDER BY amount DESC";
+        }
+
+        // Candlestick bandwidth volatility
+        if (q.contains("candlestick") || q.contains("ohlc") || q.contains("volatility")) {
+            return "SELECT timestamp, data_mb, voice_minutes FROM usage ORDER BY timestamp LIMIT 15";
+        }
+
+        // Polar rose chart
+        if (q.contains("polar") || q.contains("rose")) {
+            return "SELECT tower, SUM(data_mb) AS data_mb FROM usage GROUP BY tower ORDER BY data_mb DESC LIMIT 8";
+        }
+
+        // Sankey flow
+        if (q.contains("sankey") || q.contains("routing flow") || q.contains("traffic flow")) {
+            return "SELECT tower, region, SUM(data_mb) AS data_mb FROM usage GROUP BY tower, region ORDER BY data_mb DESC LIMIT 8";
+        }
+
+        // Stacked Area
+        if (q.contains("stacked area") || q.contains("4g vs 5g") || q.contains("trajectory")) {
+            return "SELECT date, SUM(amount) AS amount FROM revenue GROUP BY date ORDER BY date";
+        }
+
+        // Stacked Bar traffic mix
+        if (q.contains("stacked bar") || q.contains("traffic mix")) {
             return "SELECT region, SUM(data_mb) AS data_mb, SUM(voice_minutes) AS voice_minutes FROM usage GROUP BY region ORDER BY data_mb DESC";
         }
 

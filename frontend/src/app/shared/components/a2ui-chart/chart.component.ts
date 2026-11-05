@@ -8,7 +8,7 @@ import { DashboardService } from '../../../core/services/dashboard.service';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-5 shadow-xl backdrop-blur-md flex flex-col justify-between h-full transition-all duration-200 hover:border-white/20">
+    <div [style.min-height.px]="containerHeightPx()" class="rounded-2xl border border-white/10 bg-slate-900/70 p-5 shadow-xl backdrop-blur-md flex flex-col justify-between h-full transition-all duration-200 hover:border-white/20">
       <!-- Title & Header -->
       <div class="mb-4 flex items-start justify-between gap-3">
         <div>
@@ -44,7 +44,7 @@ import { DashboardService } from '../../../core/services/dashboard.service';
       </div>
 
       <!-- Chart Viewport Area -->
-      <div class="relative flex-1 flex items-center justify-center w-full min-h-[250px] select-none">
+      <div [style.min-height.px]="viewportHeightPx()" class="relative flex-1 flex items-center justify-center w-full select-none">
         
         <!-- 1. LINE CHART -->
         @if (chartType() === 'line') {
@@ -514,6 +514,19 @@ export class ChartComponent {
 
   chartType = computed(() => {
     return this.props().chartType || 'line';
+  });
+
+  containerHeightPx = computed(() => {
+    const h = this.props().widgetHeight || this.props().height;
+    if (typeof h === 'number') return h;
+    if (h === 'compact') return 260;
+    if (h === 'tall') return 480;
+    if (h === 'hero') return 600;
+    return 340;
+  });
+
+  viewportHeightPx = computed(() => {
+    return Math.max(160, this.containerHeightPx() - 90);
   });
 
   chartTypeLabel = computed(() => {

@@ -391,23 +391,28 @@
         <!-- MODE 1: CANVAS DESIGNER (WORKSPACE VIEW) -->
         <!-- ========================================== -->
         @if (activeStudioTab() === 'canvas') {
-          <div class="flex flex-col flex-1">
+          <div class="flex flex-col flex-1" (click)="selectedWidgetId.set(null)">
             
             <!-- Canvas Header Bar -->
-            <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
               <div>
-                <h2 class="text-2xl font-black text-white tracking-tight">
-                  {{ dashboardService.activeDashboard()?.name || dashboardService.activePage()?.page?.title || 'Interactive BI Studio Canvas' }}
+                <h2 class="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                  <span>{{ dashboardService.activeDashboard()?.name || dashboardService.activePage()?.page?.title || 'Interactive BI Studio Canvas' }}</span>
+                  @if (selectedWidgetId()) {
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase tracking-widest">
+                      1 Widget Selected
+                    </span>
+                  }
                 </h2>
-                <p class="text-xs text-slate-400 mt-1">Multi-Tenant High Performance Decision Dashboard · Dynamic Grid Layout</p>
+                <p class="text-xs text-slate-400 mt-0.5">Drag & drop layout grid with flexible width & height sizing buttons</p>
               </div>
 
               <!-- Canvas Action Bar -->
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-2.5">
                 @if (hasUnsavedChanges()) {
                   <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">
                     <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                    Unsaved layout changes
+                    Unsaved changes
                   </span>
                 }
 
@@ -430,15 +435,70 @@
                 </button>
 
                 <button (click)="toggleEditMode()"
-                        class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-white/10 transition-all">
-                  {{ dashboardService.editMode() ? 'Exit Edit' : 'Edit Layout' }}
+                        [class.bg-indigo-600]="dashboardService.editMode()"
+                        [class.text-white]="dashboardService.editMode()"
+                        class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-white/10 transition-all flex items-center gap-1.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                  </svg>
+                  <span>{{ dashboardService.editMode() ? 'Exit Edit Mode' : 'Edit Layout & Sizes' }}</span>
                 </button>
               </div>
             </div>
 
+            <!-- DEDICATED SELECTED WIDGET SIZING & POSITION CONTROLS TOOLBAR -->
+            @if (selectedWidgetId(); as selId) {
+              <div class="mb-4 p-3 rounded-2xl border border-indigo-500/40 bg-[#0f172e]/95 backdrop-blur-xl shadow-2xl flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-150"
+                   (click)="$event.stopPropagation()">
+                
+                <!-- Left: Title & Status -->
+                <div class="flex items-center gap-2">
+                  <span class="flex h-2.5 w-2.5 rounded-full bg-indigo-400 animate-ping"></span>
+                  <span class="text-xs font-bold text-white">Adjust Selected Chart Size:</span>
+                </div>
+
+                <!-- Center: Width Adjustment Buttons -->
+                <div class="flex items-center gap-2 bg-slate-950/70 px-3 py-1.5 rounded-xl border border-white/10 text-xs">
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Width:</span>
+                  <button (click)="changeColSpan(selId, -1)" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold" title="Narrow Width">−</button>
+                  <button (click)="changeColSpan(selId, 1)" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold" title="Widen Width">+</button>
+                  <div class="h-3 w-px bg-white/10 mx-1"></div>
+                  <!-- Width Presets -->
+                  <button (click)="setColSpan(selId, 3)" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-900 hover:bg-indigo-600 text-slate-300 hover:text-white">25% (3c)</button>
+                  <button (click)="setColSpan(selId, 4)" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-900 hover:bg-indigo-600 text-slate-300 hover:text-white">33% (4c)</button>
+                  <button (click)="setColSpan(selId, 6)" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-900 hover:bg-indigo-600 text-slate-300 hover:text-white">50% (6c)</button>
+                  <button (click)="setColSpan(selId, 8)" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-900 hover:bg-indigo-600 text-slate-300 hover:text-white">66% (8c)</button>
+                  <button (click)="setColSpan(selId, 12)" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-900 hover:bg-indigo-600 text-slate-300 hover:text-white">100% (12c)</button>
+                </div>
+
+                <!-- Height Adjustment Buttons -->
+                <div class="flex items-center gap-2 bg-slate-950/70 px-3 py-1.5 rounded-xl border border-white/10 text-xs">
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Height:</span>
+                  <button (click)="changeWidgetHeight(selId, -60)" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold" title="Shorten Height">−</button>
+                  <button (click)="changeWidgetHeight(selId, 60)" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold" title="Increase Height">+</button>
+                  <div class="h-3 w-px bg-white/10 mx-1"></div>
+                  <!-- Height Presets -->
+                  <button (click)="setWidgetHeight(selId, 260)" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-900 hover:bg-indigo-600 text-slate-300 hover:text-white">Compact (260px)</button>
+                  <button (click)="setWidgetHeight(selId, 340)" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-900 hover:bg-indigo-600 text-slate-300 hover:text-white">Standard (340px)</button>
+                  <button (click)="setWidgetHeight(selId, 480)" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-900 hover:bg-indigo-600 text-slate-300 hover:text-white">Tall (480px)</button>
+                  <button (click)="setWidgetHeight(selId, 600)" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-900 hover:bg-indigo-600 text-slate-300 hover:text-white">Hero (600px)</button>
+                </div>
+
+                <!-- Right: Remove / Deselect -->
+                <div class="flex items-center gap-1.5">
+                  <button (click)="removeComponent(selId)" class="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-600 text-rose-300 hover:text-white text-xs font-bold transition-colors">
+                    Remove
+                  </button>
+                  <button (click)="selectedWidgetId.set(null)" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs font-semibold">
+                    ✕ Done
+                  </button>
+                </div>
+              </div>
+            }
+
             <!-- Temporary Query Banner if AI Query was run -->
             @if (lastQueryResponse() && dashboardService.activeDashboard()) {
-              <div class="mb-6 p-4 rounded-xl border border-indigo-500/30 bg-indigo-500/10 flex items-center justify-between">
+              <div class="mb-4 p-4 rounded-xl border border-indigo-500/30 bg-indigo-500/10 flex items-center justify-between">
                 <div>
                   <h4 class="text-xs font-bold text-white">Temporary Query Results Ready</h4>
                   <p class="text-[11px] text-slate-400 mt-0.5">Would you like to pin these widgets permanently into "{{ dashboardService.activeDashboard()!.name }}"?</p>
@@ -449,39 +509,76 @@
               </div>
             }
 
-            <!-- Canvas Components Grid -->
+            <!-- Canvas Components Grid with Drag & Drop & Sizing Highlights -->
             @if (dashboardService.activePage()?.page?.components; as comps) {
               <div class="grid grid-cols-1 gap-6 lg:grid-cols-12 flex-1">
                 @for (comp of comps; track comp.id; let idx = $index; let count = $count) {
                   <div [class]="getColSpanClass(comp)"
-                       [class.border-2]="dragOverIndex() === idx && dashboardService.editMode()"
-                       [class.border-dashed]="dragOverIndex() === idx && dashboardService.editMode()"
-                       [class.border-indigo-500]="dragOverIndex() === idx && dashboardService.editMode()"
+                       [class.ring-2]="selectedWidgetId() === comp.id"
+                       [class.ring-indigo-500]="selectedWidgetId() === comp.id"
+                       [class.shadow-2xl]="selectedWidgetId() === comp.id"
+                       [class.border-2]="dragOverIndex() === idx"
+                       [class.border-dashed]="dragOverIndex() === idx"
+                       [class.border-indigo-400]="dragOverIndex() === idx"
+                       [class.bg-indigo-500/10]="dragOverIndex() === idx"
+                       (click)="selectWidget(comp.id, $event)"
                        (dragover)="onDragOver($event, idx)" (dragleave)="onDragLeave()" (drop)="onDrop($event, idx)"
-                       class="relative group/card transition-all duration-200">
+                       class="relative group/card transition-all duration-200 rounded-2xl cursor-pointer">
                     
-                    <!-- Edit Controls Floating Ribbon -->
-                    @if (dashboardService.editMode()) {
-                      <div class="absolute -top-3 right-4 z-40 flex items-center gap-1 rounded-lg border border-white/10 bg-[#0b1024] px-2 py-1 shadow-2xl backdrop-blur-md">
-                        <!-- Drag Handle -->
-                        <div draggable="true" (dragstart)="onDragStart($event, idx)" class="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-white" title="Drag to reorder">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
-                          </svg>
-                        </div>
-                        <!-- Width Sizing -->
-                        <button (click)="changeColSpan(comp.id, -1)" class="p-1 text-slate-400 hover:text-white font-mono text-[10px]" title="Narrow widget">−</button>
-                        <span class="text-[9px] font-mono text-indigo-400 font-bold">{{ comp.props?.colSpan || 6 }}c</span>
-                        <button (click)="changeColSpan(comp.id, 1)" class="p-1 text-slate-400 hover:text-white font-mono text-[10px]" title="Widen widget">+</button>
-                        <div class="h-3 w-px bg-white/10"></div>
-                        <!-- Remove -->
-                        <button (click)="removeComponent(comp.id)" class="p-1 text-slate-400 hover:text-rose-400" title="Delete Widget">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                          </svg>
-                        </button>
+                    <!-- Edit Controls Floating Ribbon (Visible in edit mode or on card hover) -->
+                    <div class="absolute -top-3 right-4 z-40 flex items-center gap-1 rounded-xl border border-white/10 bg-[#0b1024]/95 px-2 py-1 shadow-2xl backdrop-blur-md opacity-0 group-hover/card:opacity-100 transition-opacity"
+                         [class.opacity-100]="dashboardService.editMode() || selectedWidgetId() === comp.id"
+                         (click)="$event.stopPropagation()">
+                      
+                      <!-- Drag Handle for Drag-and-Drop Reorganization -->
+                      <div draggable="true" (dragstart)="onDragStart($event, idx)" class="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-white" title="Drag to reposition widget">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 text-indigo-400">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
+                        </svg>
                       </div>
-                    }
+
+                      <!-- Reorder Arrows -->
+                      <button (click)="moveComponentHorizontal(idx, 'left')" [disabled]="idx === 0" class="p-1 text-slate-400 hover:text-white disabled:opacity-30" title="Move Left">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                        </svg>
+                      </button>
+                      <button (click)="moveComponentHorizontal(idx, 'right')" [disabled]="idx === count - 1" class="p-1 text-slate-400 hover:text-white disabled:opacity-30" title="Move Right">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                        </svg>
+                      </button>
+
+                      <div class="h-3 w-px bg-white/10"></div>
+
+                      <!-- Width Sizing Buttons -->
+                      <button (click)="changeColSpan(comp.id, -1)" class="p-1 text-slate-400 hover:text-white font-mono text-[10px]" title="Narrow widget width">−</button>
+                      <span class="text-[9px] font-mono text-indigo-300 font-bold px-0.5">{{ comp.props?.colSpan || 6 }}w</span>
+                      <button (click)="changeColSpan(comp.id, 1)" class="p-1 text-slate-400 hover:text-white font-mono text-[10px]" title="Widen widget width">+</button>
+
+                      <div class="h-3 w-px bg-white/10"></div>
+
+                      <!-- Height Sizing Buttons -->
+                      <button (click)="changeWidgetHeight(comp.id, -60)" class="p-1 text-slate-400 hover:text-white font-mono text-[10px]" title="Decrease widget height">▼</button>
+                      <span class="text-[9px] font-mono text-cyan-300 font-bold px-0.5">{{ comp.props?.widgetHeight || 340 }}h</span>
+                      <button (click)="changeWidgetHeight(comp.id, 60)" class="p-1 text-slate-400 hover:text-white font-mono text-[10px]" title="Increase widget height">▲</button>
+
+                      <div class="h-3 w-px bg-white/10"></div>
+
+                      <!-- Duplicate -->
+                      <button (click)="duplicateComponent(comp)" class="p-1 text-slate-400 hover:text-cyan-400" title="Duplicate Widget">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+                        </svg>
+                      </button>
+
+                      <!-- Remove -->
+                      <button (click)="removeComponent(comp.id)" class="p-1 text-slate-400 hover:text-rose-400" title="Delete Widget">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
 
                     <!-- Render Component by Dynamic Type -->
                     @if (comp.type === 'google-map') {
@@ -640,15 +737,21 @@
         <!-- ========================================== -->
         @if (activeStudioTab() === 'data_hub') {
           <div class="flex flex-col flex-1 space-y-6">
-            <div class="flex items-center justify-between">
+            <div class="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 class="text-2xl font-black text-white tracking-tight">Data Hub & Modeling Center</h2>
-                <p class="text-xs text-slate-400 mt-0.5">Schema Dictionary, Dynamic Custom Datasets & SQL Query Workbench</p>
+                <p class="text-xs text-slate-400 mt-0.5">Telecom Schema Dictionary, 20-Chart Dynamic Datasets & SQL Query Workbench</p>
               </div>
-              <label for="hub-csv-upload" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-bold text-xs text-white shadow-lg cursor-pointer flex items-center gap-1.5">
-                <span>+ Upload New CSV Dataset</span>
-              </label>
-              <input id="hub-csv-upload" type="file" accept=".csv" class="hidden" (change)="onCsvUpload($event)" />
+              <div class="flex items-center gap-2.5">
+                <button (click)="loadPreloadedTelecomDataset()"
+                        class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 font-bold text-xs text-white shadow-lg flex items-center gap-1.5 transition-all">
+                  <span>📥</span><span>Load 20 Telecom Charts Dataset</span>
+                </button>
+                <label for="hub-csv-upload" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-bold text-xs text-white shadow-lg cursor-pointer flex items-center gap-1.5 transition-all">
+                  <span>+ Upload New CSV Dataset</span>
+                </label>
+                <input id="hub-csv-upload" type="file" accept=".csv" class="hidden" (change)="onCsvUpload($event)" />
+              </div>
             </div>
 
             <!-- Custom Dataset Preview (If selected) -->
@@ -688,11 +791,18 @@
             }
 
             <!-- SQL Workbench Console -->
-            <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-6 shadow-xl backdrop-blur-md">
-              <h3 class="text-sm font-bold text-white mb-2 flex items-center gap-2">
-                <span>⚡</span><span>SQL Query Workbench</span>
-              </h3>
+            <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-6 shadow-xl backdrop-blur-md relative">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                  <span>⚡</span><span>SQL Query Workbench with IDE Suggestions</span>
+                </h3>
+                <button (click)="openSaveQueryModal(rawSqlConsoleInput())" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1">
+                  <span>💾</span><span>Save Query</span>
+                </button>
+              </div>
               <textarea [(ngModel)]="rawSqlConsoleInput" rows="3"
+                        (input)="onSqlInputChange($any($event.target).value, $any($event.target))"
+                        (keydown)="onSqlKeyDown($event, $any($event.target))"
                         class="w-full rounded-xl border border-white/10 bg-slate-950/70 p-3 font-mono text-xs text-slate-200 focus:border-indigo-500 focus:outline-none leading-relaxed"></textarea>
               <div class="flex items-center justify-between mt-3">
                 <span class="text-[10px] text-slate-500">Supports PostgreSQL & Dynamic Datasets (Strict RLS enforced)</span>
@@ -708,36 +818,219 @@
         <!-- MODE 6: AI DECISION COPILOT -->
         <!-- ========================================== -->
         @if (activeStudioTab() === 'ai_copilot') {
-          <div class="flex flex-col flex-1 max-w-4xl mx-auto w-full space-y-6">
-            <div>
-              <h2 class="text-2xl font-black text-white tracking-tight">AI Analytics Copilot</h2>
-              <p class="text-xs text-slate-400 mt-0.5">Ask questions in natural language. The AI translates them into secure SQL pipelines with instant visualization.</p>
+          <div class="flex flex-col flex-1 max-w-5xl mx-auto w-full space-y-6">
+            
+            <!-- Copilot Header Bar -->
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 class="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                  <span>AI Analytics Copilot</span>
+                  <span class="text-[9px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase tracking-widest font-mono">
+                    IDE Mode
+                  </span>
+                </h2>
+                <p class="text-xs text-slate-400 mt-0.5">Write SQL queries with modern IDE keyword autocomplete, or ask plain English questions to auto-generate charts.</p>
+              </div>
+
+              <!-- Top Quick Action Buttons -->
+              <div class="flex items-center gap-2">
+                <button (click)="toggleSavedQueriesDrawer()"
+                        class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-white/10 transition-all flex items-center gap-1.5 shadow-md">
+                  <span>📁</span>
+                  <span>Saved Queries ({{ queryService.savedQueries().length }})</span>
+                </button>
+                <button (click)="loadPreloadedTelecomDataset()"
+                        class="px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-xs font-bold border border-emerald-500/30 transition-all flex items-center gap-1.5 shadow-md">
+                  <span>📥</span>
+                  <span>Preload 20-Chart Dataset</span>
+                </button>
+              </div>
             </div>
 
-            <!-- Query Input Box -->
-            <div class="rounded-2xl border border-indigo-500/30 bg-slate-900/80 p-5 shadow-2xl backdrop-blur-md">
-              <textarea [(ngModel)]="queryText" (keydown.enter)="$event.preventDefault(); onSubmitQuery()"
-                        placeholder="Ask anything (e.g. 'Show revenue trend for last 30 days', 'Display google map base stations', 'Show link analysis caller network')..."
-                        rows="3"
-                        class="w-full rounded-xl border border-white/10 bg-slate-950/70 p-3.5 text-xs text-slate-200 placeholder-slate-500 focus:border-indigo-500 focus:outline-none resize-none leading-relaxed"></textarea>
-              <div class="flex items-center justify-between mt-3">
-                <!-- Preset Suggestions -->
-                <div class="flex flex-wrap gap-1.5">
-                  @for (s of suggestions.slice(0, 4); track s) {
-                    <button (click)="runQuery(s)" class="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700 text-[10px] font-semibold text-slate-300 border border-white/5">
-                      {{ s }}
+            <!-- Query Mode Switcher Tabs -->
+            <div class="flex items-center gap-2 border-b border-white/10 pb-3">
+              <button (click)="setInputMode('sql')"
+                      [class.bg-indigo-600]="aiInputMode() === 'sql'"
+                      [class.text-white]="aiInputMode() === 'sql'"
+                      [class.text-slate-400]="aiInputMode() !== 'sql'"
+                      class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border border-white/5">
+                <span class="text-sm">⚡</span>
+                <span>SQL Query IDE (With Keyword Autocomplete)</span>
+              </button>
+
+              <button (click)="setInputMode('natural')"
+                      [class.bg-indigo-600]="aiInputMode() === 'natural'"
+                      [class.text-white]="aiInputMode() === 'natural'"
+                      [class.text-slate-400]="aiInputMode() !== 'natural'"
+                      class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border border-white/5">
+                <span class="text-sm">✨</span>
+                <span>Ask Natural Language Query</span>
+              </button>
+            </div>
+
+            <!-- 1. SQL QUERY IDE MODE (WITH MODERN AUTOCOMPLETE KEYWORDS) -->
+            @if (aiInputMode() === 'sql') {
+              <div class="rounded-2xl border border-indigo-500/40 bg-slate-900/90 p-5 shadow-2xl backdrop-blur-md relative">
+                
+                <div class="flex items-center justify-between mb-2.5">
+                  <div class="flex items-center gap-2">
+                    <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+                    <span class="text-[11px] font-bold text-slate-300 uppercase tracking-wider font-mono">SQL Editor & Intellisense</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button (click)="formatSql()" class="text-[11px] text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800/80 transition-colors">
+                      Format SQL
                     </button>
+                    <button (click)="openSaveQueryModal()" class="text-[11px] text-indigo-400 hover:text-indigo-300 px-2 py-1 rounded bg-indigo-500/15 font-semibold transition-colors flex items-center gap-1">
+                      <span>💾</span><span>Save Query</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Textarea with SQL Intellisense / Autocomplete Trigger -->
+                <div class="relative">
+                  <textarea #sqlTextarea
+                            id="sql-editor-textarea"
+                            [value]="sqlEditorValue()"
+                            (input)="onSqlInputChange($any($event.target).value, $any($event.target))"
+                            (keydown)="onSqlKeyDown($event, $any($event.target))"
+                            (keydown.control.enter)="onSubmitQuery()"
+                            placeholder="Type SELECT ... (Autocomplete triggers automatically on keywords and tables)..."
+                            rows="4"
+                            class="w-full rounded-xl border border-white/10 bg-slate-950/80 p-3.5 font-mono text-xs text-cyan-200 placeholder-slate-500 focus:border-indigo-500 focus:outline-none resize-none leading-relaxed shadow-inner"></textarea>
+
+                  <!-- FLOATING AUTOCOMPLETE SUGGESTION DROPDOWN (IDE POPUP) -->
+                  @if (showAutocomplete() && sqlSuggestions().length > 0) {
+                    <div id="sql-autocomplete-dropdown"
+                         class="absolute z-50 left-2 top-14 w-80 rounded-xl border border-indigo-500/40 bg-[#070b1a]/95 shadow-2xl backdrop-blur-2xl overflow-hidden divide-y divide-white/5 animate-in fade-in duration-100">
+                      
+                      <div class="p-2 bg-indigo-950/40 border-b border-white/10 flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        <span>Keyword & Schema Suggestions</span>
+                        <span class="text-[9px] text-slate-500 lowercase">↑↓ navigate · tab/enter insert</span>
+                      </div>
+
+                      <div class="max-h-60 overflow-y-auto">
+                        @for (s of sqlSuggestions(); track s.label; let i = $index) {
+                          <div (click)="selectSuggestion(s, sqlTextarea)"
+                               [class.bg-indigo-600/30]="activeSuggestionIndex() === i"
+                               [class.border-l-2]="activeSuggestionIndex() === i"
+                               [class.border-indigo-400]="activeSuggestionIndex() === i"
+                               class="px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors">
+                            
+                            <div class="flex items-center gap-2">
+                              <!-- Category Badge -->
+                              @if (s.kind === 'keyword') {
+                                <span class="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30">KW</span>
+                              } @else if (s.kind === 'table') {
+                                <span class="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">TBL</span>
+                              } @else if (s.kind === 'column') {
+                                <span class="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">COL</span>
+                              } @else {
+                                <span class="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">FUNC</span>
+                              }
+                              <span class="text-xs font-mono font-bold text-white">{{ s.label }}</span>
+                            </div>
+
+                            <span class="text-[10px] text-slate-400 truncate max-w-[130px]">{{ s.detail }}</span>
+                          </div>
+                        }
+                      </div>
+                    </div>
                   }
                 </div>
-                <button (click)="onSubmitQuery()" [disabled]="dashboardService.loading()"
-                        class="px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-xs shadow-lg flex items-center gap-2">
-                  @if (dashboardService.loading()) {
-                    <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                    <span>Analyzing...</span>
-                  } @else {
-                    <span>Run AI Pipeline</span>
-                  }
-                </button>
+
+                <!-- Fast-Click Keyword & Table Chips Bar -->
+                <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-white/5 text-[10px]">
+                  <span class="text-slate-500 font-bold uppercase tracking-wider mr-1">Quick Chips:</span>
+                  <button (click)="insertKeyword('SELECT')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white font-mono">SELECT</button>
+                  <button (click)="insertKeyword('FROM')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white font-mono">FROM</button>
+                  <button (click)="insertKeyword('WHERE')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white font-mono">WHERE</button>
+                  <button (click)="insertKeyword('GROUP BY')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white font-mono">GROUP BY</button>
+                  <button (click)="insertKeyword('ORDER BY')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white font-mono">ORDER BY</button>
+                  <button (click)="insertKeyword('LIMIT 10')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white font-mono">LIMIT 10</button>
+                  <button (click)="insertKeyword('COUNT(*)')" class="px-2 py-0.5 rounded bg-purple-900/40 hover:bg-purple-600 text-purple-300 hover:text-white font-mono font-bold">COUNT(*)</button>
+                  <button (click)="insertKeyword('SUM(amount)')" class="px-2 py-0.5 rounded bg-purple-900/40 hover:bg-purple-600 text-purple-300 hover:text-white font-mono font-bold">SUM(amount)</button>
+                  <button (click)="insertKeyword('revenue')" class="px-2 py-0.5 rounded bg-emerald-900/40 hover:bg-emerald-600 text-emerald-300 hover:text-white font-mono">revenue</button>
+                  <button (click)="insertKeyword('subscriber')" class="px-2 py-0.5 rounded bg-emerald-900/40 hover:bg-emerald-600 text-emerald-300 hover:text-white font-mono">subscriber</button>
+                  <button (click)="insertKeyword('usage')" class="px-2 py-0.5 rounded bg-emerald-900/40 hover:bg-emerald-600 text-emerald-300 hover:text-white font-mono">usage</button>
+                  <button (click)="insertKeyword('telecom_kpis')" class="px-2 py-0.5 rounded bg-emerald-900/40 hover:bg-emerald-600 text-emerald-300 hover:text-white font-mono">telecom_kpis</button>
+                </div>
+
+                <!-- Footer Action Bar -->
+                <div class="flex items-center justify-between mt-4">
+                  <span class="text-[10px] text-slate-400">Strict multi-tenant security · Press <kbd class="px-1 py-0.5 rounded bg-slate-800 text-white font-mono">Ctrl+Enter</kbd> to run</span>
+                  <button (click)="onSubmitQuery()" [disabled]="dashboardService.loading()"
+                          class="px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-xs shadow-lg flex items-center gap-2 transition-all">
+                    @if (dashboardService.loading()) {
+                      <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      <span>Executing Query...</span>
+                    } @else {
+                      <span>▶ Execute SQL Pipeline</span>
+                    }
+                  </button>
+                </div>
+              </div>
+            }
+
+            <!-- 2. NATURAL LANGUAGE QUERY MODE -->
+            @if (aiInputMode() === 'natural') {
+              <div class="rounded-2xl border border-indigo-500/30 bg-slate-900/80 p-5 shadow-2xl backdrop-blur-md">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Natural Language Prompt</span>
+                  <button (click)="openSaveQueryModal()" class="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1">
+                    <span>💾</span><span>Save Query</span>
+                  </button>
+                </div>
+
+                <textarea [(ngModel)]="queryText" (keydown.enter)="$event.preventDefault(); onSubmitQuery()"
+                          placeholder="Ask anything in plain English (e.g. 'Show revenue trend for last 30 days', 'What is the network SLA availability?', 'Display google map base stations')..."
+                          rows="3"
+                          class="w-full rounded-xl border border-white/10 bg-slate-950/70 p-3.5 text-xs text-slate-200 placeholder-slate-500 focus:border-indigo-500 focus:outline-none resize-none leading-relaxed"></textarea>
+                
+                <div class="flex items-center justify-between mt-3">
+                  <!-- Preset Suggestions -->
+                  <div class="flex flex-wrap gap-1.5">
+                    @for (s of suggestions.slice(0, 4); track s) {
+                      <button (click)="runQuery(s)" class="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700 text-[10px] font-semibold text-slate-300 border border-white/5">
+                        {{ s }}
+                      </button>
+                    }
+                  </div>
+                  <button (click)="onSubmitQuery()" [disabled]="dashboardService.loading()"
+                          class="px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-xs shadow-lg flex items-center gap-2">
+                    @if (dashboardService.loading()) {
+                      <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      <span>Analyzing...</span>
+                    } @else {
+                      <span>Run AI Pipeline</span>
+                    }
+                  </button>
+                </div>
+              </div>
+            }
+
+            <!-- 3. TELECOM 20 CHARTS QUICK QUERY LAUNCHER CAROUSEL / GRID -->
+            <div class="rounded-2xl border border-white/10 bg-slate-900/60 p-4 shadow-xl backdrop-blur-md">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="text-base">📊</span>
+                  <h3 class="text-xs font-bold text-white uppercase tracking-wider">Quick Launcher: 20 Telecom Charts Dataset Queries</h3>
+                </div>
+                <span class="text-[10px] text-slate-400 font-mono">1-click query & instant visualization</span>
+              </div>
+
+              <!-- Quick query chips -->
+              <div class="flex flex-wrap gap-2 max-h-36 overflow-y-auto pr-1">
+                @for (preset of telecomPresets; track preset.name) {
+                  <button (click)="runQuery(preset.query)"
+                          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-slate-950/60 hover:bg-indigo-600/30 hover:border-indigo-500/40 text-left transition-all group">
+                    <span class="text-sm">{{ preset.icon }}</span>
+                    <div>
+                      <span class="text-xs font-bold text-slate-200 group-hover:text-white block">{{ preset.name }}</span>
+                      <span class="text-[9px] text-slate-500 font-mono block">{{ preset.desc }}</span>
+                    </div>
+                  </button>
+                }
               </div>
             </div>
 
@@ -772,25 +1065,52 @@
               }
             }
 
-            <!-- Render Result of AI Query -->
+            <!-- Render Result of AI Query with Save Chart to Dashboard Action Toolbar -->
             @if (dashboardService.activePage()?.page?.components; as comps) {
               <div class="space-y-4">
                 <div class="flex items-center justify-between">
-                  <h4 class="text-sm font-bold text-white">Pipeline Output Result</h4>
-                  <button (click)="setStudioTab('canvas')" class="text-xs text-indigo-400 font-bold hover:underline">View in Canvas Workspace →</button>
+                  <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                    <span>Generated Visualization</span>
+                    <span class="text-[10px] text-indigo-400 font-mono">({{ comps.length }} Component)</span>
+                  </h4>
+                  <div class="flex items-center gap-2">
+                    <button (click)="addToDashboard()" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1 shadow-md">
+                      <span>📌 Pin to Active Canvas</span>
+                    </button>
+                    <button (click)="openSaveQueryModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs flex items-center gap-1 border border-white/10 shadow-md">
+                      <span>💾 Save Query</span>
+                    </button>
+                  </div>
                 </div>
+
                 @for (c of comps; track c.id) {
-                  @if (c.type === 'google-map') {
-                    <a2ui-google-map [id]="c.id" [props]="c.props" [events]="c.events || []" />
-                  } @else if (c.type === 'link-analysis' || c.type === 'network') {
-                    <a2ui-link-analysis [id]="c.id" [props]="c.props" [events]="c.events || []" />
-                  } @else if (c.type === 'chart') {
-                    <a2ui-chart [id]="c.id" [props]="c.props" [events]="c.events || []" />
-                  } @else if (c.type === 'kpi') {
-                    <a2ui-kpi [id]="c.id" [props]="c.props" [events]="c.events || []" />
-                  } @else if (c.type === 'table') {
-                    <a2ui-table [id]="c.id" [props]="c.props" [events]="c.events || []" />
-                  }
+                  <div class="rounded-2xl border border-white/10 bg-slate-900/40 p-4 shadow-xl backdrop-blur-md relative">
+                    
+                    <!-- Chart Save & Pin Ribbon -->
+                    <div class="flex items-center justify-between pb-3 mb-3 border-b border-white/5">
+                      <span class="text-xs font-bold text-slate-300">{{ c.props?.title || 'Generated Chart' }}</span>
+                      <div class="flex items-center gap-2 text-xs">
+                        <button (click)="openSaveChartModal(c)" class="px-3 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white font-bold border border-indigo-500/40 flex items-center gap-1 transition-all">
+                          <span>💾</span><span>Save to Dashboard...</span>
+                        </button>
+                        <button (click)="saveAsStandaloneKpi(c)" class="px-3 py-1 rounded-lg bg-cyan-600/30 hover:bg-cyan-600 text-cyan-300 hover:text-white font-bold border border-cyan-500/40 flex items-center gap-1 transition-all">
+                          <span>⭐</span><span>Save as KPI</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    @if (c.type === 'google-map') {
+                      <a2ui-google-map [id]="c.id" [props]="c.props" [events]="c.events || []" />
+                    } @else if (c.type === 'link-analysis' || c.type === 'network') {
+                      <a2ui-link-analysis [id]="c.id" [props]="c.props" [events]="c.events || []" />
+                    } @else if (c.type === 'chart') {
+                      <a2ui-chart [id]="c.id" [props]="c.props" [events]="c.events || []" />
+                    } @else if (c.type === 'kpi') {
+                      <a2ui-kpi [id]="c.id" [props]="c.props" [events]="c.events || []" />
+                    } @else if (c.type === 'table') {
+                      <a2ui-table [id]="c.id" [props]="c.props" [events]="c.events || []" />
+                    }
+                  </div>
                 }
               </div>
             }
@@ -800,7 +1120,187 @@
       </main>
     </div>
 
-    <!-- Save As Workspace Modal -->
+    <!-- 1. SAVE QUERY MODAL -->
+    @if (showSaveQueryModal()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+        <div class="w-full max-w-md rounded-2xl border border-white/10 bg-[#0f172e] p-6 shadow-2xl">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span>💾</span><span>Save Query to Library</span>
+            </h3>
+            <button (click)="closeSaveQueryModal()" class="text-slate-400 hover:text-white text-xs">✕</button>
+          </div>
+          <p class="text-xs text-slate-400 mb-4">Save this query for future 1-click execution, KPI tracking, and dashboard automation.</p>
+
+          <div class="space-y-3 mb-5">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Query Title</label>
+              <input type="text" [value]="saveQueryTitle()" (input)="saveQueryTitle.set($any($event.target).value)"
+                     placeholder="e.g. Monthly Revenue Run-Rate"
+                     class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500" />
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Category</label>
+              <select [value]="saveQueryCategory()" (change)="saveQueryCategory.set($any($event.target).value)"
+                      class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                <option value="Financial">Financial & Revenue</option>
+                <option value="Network">Network Telemetry & Traffic</option>
+                <option value="SLA">Core SLA & Benchmarks</option>
+                <option value="Customer">Customer & Churn Intelligence</option>
+                <option value="Marketing">Marketing & Tariffs</option>
+                <option value="General">General Analytics</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Description (Optional)</label>
+              <input type="text" [value]="saveQueryDesc()" (input)="saveQueryDesc.set($any($event.target).value)"
+                     placeholder="e.g. Tracks provincial 4G and 5G trends"
+                     class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500" />
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2">
+            <button (click)="closeSaveQueryModal()" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white">Cancel</button>
+            <button (click)="confirmSaveQuery()" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-md">
+              Save Query
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- 2. SAVE GENERATED CHART TO DASHBOARD MODAL -->
+    @if (showSaveChartModal()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+        <div class="w-full max-w-md rounded-2xl border border-white/10 bg-[#0f172e] p-6 shadow-2xl">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span>📌</span><span>Save Chart to Dashboard / KPI</span>
+            </h3>
+            <button (click)="closeSaveChartModal()" class="text-slate-400 hover:text-white text-xs">✕</button>
+          </div>
+          <p class="text-xs text-slate-400 mb-4">Persist this chart widget permanently into your active canvas or any saved workspace.</p>
+
+          <div class="space-y-3 mb-5">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Chart Display Title</label>
+              <input type="text" [value]="chartCustomTitle()" (input)="chartCustomTitle.set($any($event.target).value)"
+                     placeholder="Widget Title..."
+                     class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500" />
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Target Workspace / Dashboard</label>
+              <select [value]="chartTargetDashboardId()" (change)="chartTargetDashboardId.set($any($event.target).value)"
+                      class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                <option value="active">Active Canvas View</option>
+                @for (d of dashboardService.dashboards(); track d.id) {
+                  <option [value]="d.id">{{ d.name }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Initial Width</label>
+                <select [value]="chartTargetColSpan()" (change)="chartTargetColSpan.set(+$any($event.target).value)"
+                        class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                  <option [value]="4">1/3 Width (4 Cols)</option>
+                  <option [value]="6">1/2 Width (6 Cols)</option>
+                  <option [value]="8">2/3 Width (8 Cols)</option>
+                  <option [value]="12">Full Width (12 Cols)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Initial Height</label>
+                <select [value]="chartTargetHeight()" (change)="chartTargetHeight.set(+$any($event.target).value)"
+                        class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                  <option [value]="260">Compact (260px)</option>
+                  <option [value]="340">Standard (340px)</option>
+                  <option [value]="480">Tall (480px)</option>
+                  <option [value]="600">Hero (600px)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2">
+            <button (click)="closeSaveChartModal()" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white">Cancel</button>
+            <button (click)="confirmSaveChartToDashboard()" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-md">
+              Confirm & Pin to Canvas
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- 3. SAVED QUERIES LIBRARY DRAWER / MODAL -->
+    @if (savedQueriesDrawerOpen()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-end p-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div class="w-full max-w-md h-full bg-[#0c1126] border-l border-white/10 p-6 flex flex-col justify-between shadow-2xl animate-in slide-in-from-right duration-200">
+          
+          <div class="flex flex-col flex-1 overflow-hidden">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
+              <div>
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                  <span>📁</span><span>Saved Queries Library</span>
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">{{ queryService.savedQueries().length }} queries saved for this account</p>
+              </div>
+              <button (click)="toggleSavedQueriesDrawer()" class="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white text-xs">✕</button>
+            </div>
+
+            <!-- List of saved queries -->
+            <div class="flex-1 overflow-y-auto space-y-3 pr-1">
+              @for (q of queryService.savedQueries(); track q.id) {
+                <div class="p-3.5 rounded-xl border border-white/10 bg-slate-900/60 hover:border-indigo-500/40 transition-all flex flex-col justify-between group">
+                  <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                      <h4 class="text-xs font-bold text-white group-hover:text-indigo-300 transition-colors">{{ q.title }}</h4>
+                      <span class="text-[8px] font-bold px-1.5 py-0.5 rounded uppercase"
+                            [class.bg-purple-500/20]="q.queryType === 'SQL'" [class.text-purple-300]="q.queryType === 'SQL'"
+                            [class.bg-cyan-500/20]="q.queryType !== 'SQL'" [class.text-cyan-300]="q.queryType !== 'SQL'">
+                        {{ q.queryType }}
+                      </span>
+                    </div>
+                    @if (q.description) {
+                      <p class="text-[11px] text-slate-400 mb-2">{{ q.description }}</p>
+                    }
+                    <div class="p-2 rounded bg-slate-950/80 font-mono text-[10px] text-cyan-200/90 truncate mb-3">
+                      <code>{{ q.queryText }}</code>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center justify-between pt-2 border-t border-white/5">
+                    <span class="text-[9px] text-slate-500 font-semibold uppercase">{{ q.category || 'General' }}</span>
+                    <div class="flex items-center gap-2">
+                      <button (click)="deleteSavedQuery(q, $event)" class="text-[10px] text-slate-400 hover:text-rose-400 font-semibold">Delete</button>
+                      <button (click)="runSavedQuery(q)" class="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] shadow">
+                        ▶ Run Query
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="pt-4 border-t border-white/10 flex items-center justify-between">
+            <button (click)="openSaveQueryModal()" class="text-xs text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1">
+              <span>+ Save Current Query</span>
+            </button>
+            <button (click)="toggleSavedQueriesDrawer()" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- 4. SAVE AS WORKSPACE MODAL -->
     @if (showSaveAsModal()) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
         <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0f172e] p-6 shadow-2xl">
@@ -819,7 +1319,7 @@
       </div>
     }
 
-    <!-- Toast Notification -->
+    <!-- 5. TOAST NOTIFICATION -->
     @if (toastMessage(); as t) {
       <div class="fixed bottom-6 right-6 z-50 rounded-xl px-4 py-3 shadow-2xl backdrop-blur-xl border text-xs font-bold flex items-center gap-2 animate-in slide-in-from-bottom-5 duration-200"
            [class.bg-emerald-950/90]="t.type === 'success'" [class.border-emerald-500/40]="t.type === 'success'" [class.text-emerald-300]="t.type === 'success'"
