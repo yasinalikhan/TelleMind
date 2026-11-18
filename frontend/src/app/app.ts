@@ -15,8 +15,9 @@ import { LinkAnalysisComponent } from './shared/components/a2ui-link-analysis/li
 import { TableComponent } from './shared/components/a2ui-table/table.component';
 import { KpiComponent } from './shared/components/a2ui-kpi/kpi.component';
 import { MapComponent } from './shared/components/a2ui-map/map.component';
+import { SemanticService, MetricDefinition } from './core/services/semantic.service';
 
-export type StudioTab = 'canvas' | 'visual_gallery' | 'google_maps' | 'link_analysis' | 'data_hub' | 'ai_copilot';
+export type StudioTab = 'canvas' | 'visual_gallery' | 'google_maps' | 'link_analysis' | 'data_hub' | 'ai_copilot' | 'semantic_store';
 
 export interface SqlSuggestion {
   label: string;
@@ -48,6 +49,7 @@ export class App implements OnInit {
   private readonly validator = inject(A2UIValidationService);
   private readonly actionService = inject(A2UIActionService);
   private readonly datasetService = inject(DatasetService);
+  protected readonly semanticService = inject(SemanticService);
 
   @ViewChild('sqlTextarea') sqlTextareaRef?: ElementRef<HTMLTextAreaElement>;
 
@@ -268,7 +270,34 @@ export class App implements OnInit {
       this.loadDatasets();
       this.queryService.loadQueries();
       this.dashboardService.restoreActiveWorkspace();
+      this.semanticService.fetchMetrics().subscribe();
+      this.semanticService.fetchDimensions().subscribe();
     }
+  }
+
+  executeCertifiedMetric(metricId: string, dimension?: string): void {
+    this.dashboardService.loading.set(true);
+    this.semanticService.executeMetric(metricId, dimension).subscribe({
+      next: (res) => {
+        this.dashboardService.loading.set(false);
+        if (res) {
+          this.dashboardService.activePage.set(res);
+          this.activeStudioTab.set('canvas');
+          this.lastQueryResponse.set(res);
+        }
+      },
+      error: (err) => {
+        this.dashboardService.loading.set(false);
+        this.dashboardService.error.set(`Semantic Query Error: ${err.message || 'Execution failed'}`);
+      }
+    });
+  }
+
+  selectMetricForCopilot(metric: MetricDefinition, dimension = 'region'): void {
+    this.queryText.set(`Show ${metric.displayName} by ${dimension}`);
+    this.activeStudioTab.set('ai_copilot');
+    this.aiInputMode.set('natural');
+    this.onSubmitQuery();
   }
 
   getComponentType(type: string) {

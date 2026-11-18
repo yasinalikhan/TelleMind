@@ -14,6 +14,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class SqlGeneratorService {
@@ -22,6 +23,7 @@ public class SqlGeneratorService {
 
     private final HttpClient httpClient;
     private final CustomDatasetRepository customDatasetRepository;
+    private final com.telemind.analytics.semantic.SemanticCatalogService semanticCatalogService;
 
     @Value("${openai.api.key:}")
     private String apiKey;
@@ -33,8 +35,12 @@ public class SqlGeneratorService {
     @Value("${openai.model:llama3}")
     private String model;
 
-    public SqlGeneratorService(CustomDatasetRepository customDatasetRepository) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public SqlGeneratorService(
+            CustomDatasetRepository customDatasetRepository,
+            com.telemind.analytics.semantic.SemanticCatalogService semanticCatalogService) {
         this.customDatasetRepository = customDatasetRepository;
+        this.semanticCatalogService = semanticCatalogService;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(15))
                 .build();
@@ -97,6 +103,8 @@ public class SqlGeneratorService {
             }
         }
 
+        String semanticMetricsPrompt = semanticCatalogService != null ? semanticCatalogService.getCertifiedMetricsPrompt() : "";
+
         String systemMessage = "You are a PostgreSQL SQL expert for a telecom analytics platform. " +
                 "Translate natural language into a single, valid PostgreSQL SELECT query only. " +
                 "\n\nEXACT DATABASE SCHEMA (column types matter):\n" +
@@ -104,6 +112,7 @@ public class SqlGeneratorService {
                 "  revenue    (id BIGSERIAL PK, date DATE, region VARCHAR, amount NUMERIC, category VARCHAR, tenant_id VARCHAR)\n" +
                 "  usage      (id BIGSERIAL PK, tower VARCHAR, region VARCHAR, data_mb NUMERIC, voice_minutes INT, timestamp TIMESTAMP, tenant_id VARCHAR)\n" +
                 customSchemaPrompt.toString() +
+                semanticMetricsPrompt +
                 "\nCRITICAL RULES:\n" +
                 "1. NEVER JOIN subscriber.id (BIGINT) with usage.tenant_id (VARCHAR) — they are INCOMPATIBLE types.\n" +
                 "2. The tables are INDEPENDENT — each has its own tenant_id. Do NOT join them unless the question explicitly asks for a cross-table query.\n" +
@@ -185,6 +194,15 @@ public class SqlGeneratorService {
     private String generateSqlWithHeuristics(String question) {
         String q = question.toLowerCase().trim();
         log.info("Using heuristics engine for: {}", question);
+
+        // 0. Check Semantic Metric Store first for certified metric definitions
+        if (semanticCatalogService != null) {
+            Optional<String> semanticQuery = semanticCatalogService.resolveSemanticQuery(question);
+            if (semanticQuery.isPresent()) {
+                log.info("Semantic Layer successfully matched and generated certified query: {}", semanticQuery.get());
+                return semanticQuery.get();
+            }
+        }
 
         // Google Map query
         if (q.contains("google map") || q.contains("base station") || q.contains("tower coordinates") || q.contains("gis")) {

@@ -96,6 +96,13 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- JSqlParser for robust SQL AST parsing and secure tenant isolation -->
+        <dependency>
+            <groupId>com.github.jsqlparser</groupId>
+            <artifactId>jsqlparser</artifactId>
+            <version>4.5</version>
+        </dependency>
     </dependencies>
     
     <build>

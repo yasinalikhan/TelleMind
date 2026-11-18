@@ -29,6 +29,8 @@ public class DatasetController {
 
     private final CustomDatasetRepository customDatasetRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final com.telemind.analytics.query.QueryCacheService queryCacheService;
+    private final com.telemind.analytics.semantic.InMemoryOlapEngine inMemoryOlapEngine;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final Set<String> RESERVED_KEYWORDS = Set.of(
@@ -37,9 +39,16 @@ public class DatasetController {
             "drop", "alter", "column", "row", "user", "date", "timestamp", "id"
     );
 
-    public DatasetController(CustomDatasetRepository customDatasetRepository, JdbcTemplate jdbcTemplate) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public DatasetController(
+            CustomDatasetRepository customDatasetRepository,
+            JdbcTemplate jdbcTemplate,
+            com.telemind.analytics.query.QueryCacheService queryCacheService,
+            com.telemind.analytics.semantic.InMemoryOlapEngine inMemoryOlapEngine) {
         this.customDatasetRepository = customDatasetRepository;
         this.jdbcTemplate = jdbcTemplate;
+        this.queryCacheService = queryCacheService;
+        this.inMemoryOlapEngine = inMemoryOlapEngine;
     }
 
     @GetMapping
@@ -202,6 +211,12 @@ public class DatasetController {
             customDataset.setSchemaJson(objectMapper.writeValueAsString(schemaMap));
 
             CustomDataset saved = customDatasetRepository.save(customDataset);
+            if (inMemoryOlapEngine != null) {
+                inMemoryOlapEngine.ingestTable(sanitizedTableName, sanitizedHeaders, dataRows);
+            }
+            if (queryCacheService != null) {
+                queryCacheService.invalidateTenant(tenantId);
+            }
             return ResponseEntity.ok(saved);
 
         } catch (Exception e) {
@@ -228,6 +243,12 @@ public class DatasetController {
 
             // Delete metadata
             customDatasetRepository.delete(dataset);
+            if (inMemoryOlapEngine != null) {
+                inMemoryOlapEngine.removeTable(dataset.getTableName());
+            }
+            if (queryCacheService != null) {
+                queryCacheService.invalidateTenant(tenantId);
+            }
             return ResponseEntity.ok(Map.of("message", "Dataset deleted successfully"));
         } catch (Exception e) {
             log.error("Failed to delete dataset {}", id, e);

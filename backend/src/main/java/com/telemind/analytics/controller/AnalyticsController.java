@@ -27,17 +27,21 @@ public class AnalyticsController {
     private final VisualizationService visualizationService;
     private final ResponseBuilderService responseBuilderService;
     private final CacheManager cacheManager;
+    private final com.telemind.analytics.query.QueryCacheService queryCacheService;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public AnalyticsController(SqlGeneratorService sqlGeneratorService,
                                QueryExecutorService queryExecutorService,
                                VisualizationService visualizationService,
                                ResponseBuilderService responseBuilderService,
-                               CacheManager cacheManager) {
+                               CacheManager cacheManager,
+                               com.telemind.analytics.query.QueryCacheService queryCacheService) {
         this.sqlGeneratorService = sqlGeneratorService;
         this.queryExecutorService = queryExecutorService;
         this.visualizationService = visualizationService;
         this.responseBuilderService = responseBuilderService;
         this.cacheManager = cacheManager;
+        this.queryCacheService = queryCacheService;
     }
 
     @PostMapping("/query")
@@ -122,6 +126,24 @@ public class AnalyticsController {
             log.error("Error processing drill down", e);
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @GetMapping("/cache-stats")
+    public ResponseEntity<?> getCacheStats() {
+        if (queryCacheService != null) {
+            return ResponseEntity.ok(queryCacheService.getCacheStats());
+        }
+        return ResponseEntity.ok(Map.of("status", "Cache service disabled"));
+    }
+
+    @PostMapping("/cache-clear")
+    public ResponseEntity<?> clearCache() {
+        String tenantId = com.telemind.analytics.security.TenantContext.getCurrentTenant();
+        if (queryCacheService != null) {
+            queryCacheService.invalidateTenant(tenantId);
+            return ResponseEntity.ok(Map.of("message", "Cache cleared for tenant: " + tenantId));
+        }
+        return ResponseEntity.ok(Map.of("message", "No cache active"));
     }
 
     public record QueryRequest(String query, String question) {}

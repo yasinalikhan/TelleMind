@@ -1,4 +1,4 @@
-import { Component, input, computed, signal, inject } from '@angular/core';
+import { Component, input, computed, signal, inject, ViewChild, ElementRef, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { A2UIActionService } from '../../../core/services/a2ui-action.service';
 import { DashboardService } from '../../../core/services/dashboard.service';
@@ -35,6 +35,15 @@ import { DashboardService } from '../../../core/services/dashboard.service';
         
         <!-- Action Buttons -->
         <div class="flex items-center gap-2 text-xs">
+          <!-- Canvas Turbo Mode Toggle -->
+          <button (click)="toggleTurboMode()" 
+                  [class]="isCanvasMode() ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.25)]' : 'bg-slate-800/60 text-slate-400 border-white/5 hover:text-white'"
+                  class="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[10px] font-bold border transition-all cursor-pointer"
+                  [title]="isCanvasMode() ? 'Hardware-accelerated 60 FPS HTML5 Canvas active' : 'Click to enable Turbo Canvas rendering'">
+            <span class="text-cyan-400">⚡</span>
+            <span>{{ isCanvasMode() ? 'Turbo Canvas (60 FPS)' : 'SVG Vector' }}</span>
+          </button>
+
           <button (click)="exportLocalData()" class="rounded-lg bg-slate-800/60 p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white transition-all border border-white/5" title="Export CSV Data">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -44,8 +53,16 @@ import { DashboardService } from '../../../core/services/dashboard.service';
       </div>
 
       <!-- Chart Viewport Area -->
-      <div [style.min-height.px]="viewportHeightPx()" class="relative flex-1 flex items-center justify-center w-full select-none">
-        
+      <div [style.min-height.px]="viewportHeightPx()" class="relative flex-1 flex items-center justify-center w-full select-none overflow-hidden">
+        @if (isCanvasMode()) {
+          <div class="relative w-full h-full min-h-[160px] flex items-center justify-center">
+            <canvas #turboCanvas
+                    class="w-full h-full block cursor-crosshair rounded-lg"
+                    (mousemove)="onCanvasMouseMove($event)"
+                    (mouseleave)="clearTooltip()"
+                    (click)="onCanvasClick($event)"></canvas>
+          </div>
+        } @else {
         <!-- 1. LINE CHART -->
         @if (chartType() === 'line') {
           <svg viewBox="0 0 500 240" class="w-full h-full overflow-visible">
@@ -490,6 +507,7 @@ import { DashboardService } from '../../../core/services/dashboard.service';
             </svg>
           </div>
         }
+        }
 
         <!-- Hover Tooltip Overlay -->
         @if (tooltip().show) {
@@ -511,6 +529,41 @@ export class ChartComponent {
 
   private actionService = inject(A2UIActionService);
   private dashboardService = inject(DashboardService);
+
+  @ViewChild('turboCanvas') turboCanvasRef?: ElementRef<HTMLCanvasElement>;
+
+  userTurboMode = signal<boolean | null>(null);
+
+  isCanvasMode = computed(() => {
+    if (this.userTurboMode() !== null) return this.userTurboMode()!;
+    const count = this.filteredData()?.length || 0;
+    const type = this.chartType();
+    return count >= 30 && ['line', 'bar', 'column', 'scatter', 'bubble', 'stacked_area', 'sparkline'].includes(type);
+  });
+
+  private canvasHoverPoints: Array<{ x: number; y: number; label: string; value: any }> = [];
+
+  constructor() {
+    effect(() => {
+      const mode = this.isCanvasMode();
+      const data = this.filteredData();
+      const type = this.chartType();
+      const h = this.viewportHeightPx();
+      if (mode) {
+        requestAnimationFrame(() => this.drawCanvas());
+      }
+    });
+  }
+
+  toggleTurboMode(): void {
+    const current = this.isCanvasMode();
+    this.userTurboMode.set(!current);
+    setTimeout(() => {
+      if (this.isCanvasMode()) {
+        this.drawCanvas();
+      }
+    }, 50);
+  }
 
   chartType = computed(() => {
     return this.props().chartType || 'line';
@@ -1003,6 +1056,246 @@ export class ChartComponent {
       path: 'M 10 45 Q 60 55 100 35 T 180 20 T 270 10'
     };
   });
+
+  // ==========================================
+  // HIGH-PERFORMANCE TURBO CANVAS RENDERING (60 FPS)
+  // ==========================================
+  drawCanvas(): void {
+    if (!this.turboCanvasRef) return;
+    const canvas = this.turboCanvasRef.nativeElement;
+    const rect = canvas.getBoundingClientRect();
+    const width = Math.max(rect.width || 500, 300);
+    const height = Math.max(rect.height || this.viewportHeightPx(), 160);
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.resetTransform();
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+
+    this.canvasHoverPoints = [];
+    const data = this.filteredData() || [];
+    if (data.length === 0) {
+      ctx.fillStyle = '#64748b';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No Data Available for Turbo Canvas', width / 2, height / 2);
+      return;
+    }
+
+    const type = this.chartType();
+    const padding = { top: 25, bottom: 35, left: 45, right: 25 };
+    const chartW = width - padding.left - padding.right;
+    const chartH = height - padding.top - padding.bottom;
+
+    // Draw grid lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const y = padding.top + (chartH / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(width - padding.right, y);
+      ctx.stroke();
+    }
+
+    if (type === 'bar' || type === 'column' || type === 'horizontal_bar') {
+      this.drawCanvasBar(ctx, data, padding, chartW, chartH);
+    } else if (type === 'scatter' || type === 'bubble') {
+      this.drawCanvasScatter(ctx, data, padding, chartW, chartH);
+    } else {
+      this.drawCanvasLine(ctx, data, padding, chartW, chartH);
+    }
+  }
+
+  private drawCanvasLine(
+    ctx: CanvasRenderingContext2D,
+    data: any[],
+    padding: { top: number; bottom: number; left: number; right: number },
+    chartW: number,
+    chartH: number
+  ): void {
+    const yAxisKey = this.props().yAxis || 'amount';
+    const xAxisKey = this.props().xAxis || 'date';
+
+    const values = data.map((d: any) => Number(d[yAxisKey]) || 0);
+    const maxVal = Math.max(...values, 10);
+    const minVal = 0;
+    const range = maxVal - minVal || 1;
+
+    // Y Axis labels
+    ctx.fillStyle = '#64748b';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(this.formatNumber(maxVal), padding.left - 8, padding.top + 4);
+    ctx.fillText(this.formatNumber(maxVal / 2), padding.left - 8, padding.top + chartH / 2 + 4);
+    ctx.fillText(this.formatNumber(minVal), padding.left - 8, padding.top + chartH + 4);
+
+    const points: Array<{ x: number; y: number; label: string; value: any }> = [];
+    const count = data.length;
+
+    for (let i = 0; i < count; i++) {
+      const d = data[i];
+      const val = Number(d[yAxisKey]) || 0;
+      const x = padding.left + (count > 1 ? (i / (count - 1)) * chartW : chartW / 2);
+      const y = padding.top + chartH - ((val - minVal) / range) * chartH;
+      const label = String(d[xAxisKey] || `Index ${i + 1}`);
+      points.push({ x, y, label, value: val });
+      this.canvasHoverPoints.push({ x, y, label, value: val });
+    }
+
+    if (points.length === 0) return;
+
+    // Gradient fill under line
+    const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
+    grad.addColorStop(0, 'rgba(99, 102, 241, 0.35)');
+    grad.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
+
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, padding.top + chartH);
+    for (const pt of points) {
+      ctx.lineTo(pt.x, pt.y);
+    }
+    ctx.lineTo(points[points.length - 1].x, padding.top + chartH);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Line stroke
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.strokeStyle = '#6366f1';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // Points
+    const step = points.length > 80 ? Math.ceil(points.length / 40) : 1;
+    for (let i = 0; i < points.length; i += step) {
+      const pt = points[i];
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#818cf8';
+      ctx.fill();
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+
+  private drawCanvasBar(
+    ctx: CanvasRenderingContext2D,
+    data: any[],
+    padding: { top: number; bottom: number; left: number; right: number },
+    chartW: number,
+    chartH: number
+  ): void {
+    const yAxisKey = this.props().yAxis || 'amount';
+    const xAxisKey = this.props().xAxis || 'region';
+
+    const values = data.map((d: any) => Number(d[yAxisKey]) || 0);
+    const maxVal = Math.max(...values, 1);
+    const count = data.length;
+    const barSpacing = chartW / Math.max(count, 1);
+    const barWidth = Math.max(Math.min(barSpacing * 0.7, 45), 4);
+
+    const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
+    grad.addColorStop(0, '#06b6d4');
+    grad.addColorStop(1, '#4f46e5');
+    ctx.fillStyle = grad;
+
+    for (let i = 0; i < count; i++) {
+      const d = data[i];
+      const val = Number(d[yAxisKey]) || 0;
+      const bH = Math.max((val / maxVal) * chartH, 4);
+      const x = padding.left + i * barSpacing + (barSpacing - barWidth) / 2;
+      const y = padding.top + chartH - bH;
+      const label = String(d[xAxisKey] || `Item ${i + 1}`);
+
+      ctx.beginPath();
+      if (typeof (ctx as any).roundRect === 'function') {
+        (ctx as any).roundRect(x, y, barWidth, bH, [3, 3, 0, 0]);
+      } else {
+        ctx.rect(x, y, barWidth, bH);
+      }
+      ctx.fill();
+
+      this.canvasHoverPoints.push({ x: x + barWidth / 2, y, label, value: val });
+    }
+  }
+
+  private drawCanvasScatter(
+    ctx: CanvasRenderingContext2D,
+    data: any[],
+    padding: { top: number; bottom: number; left: number; right: number },
+    chartW: number,
+    chartH: number
+  ): void {
+    const count = data.length;
+    const colors = ['#06b6d4', '#6366f1', '#10b981', '#f59e0b', '#ec4899'];
+
+    for (let i = 0; i < count; i++) {
+      const d = data[i];
+      const x = padding.left + ((i * 47) % chartW);
+      const y = padding.top + ((i * 31) % chartH);
+      const label = d.msisdn || d.region || `Subscriber ${i + 1}`;
+      const val = `X: ${Math.round(x)} | Y: ${Math.round(y)}`;
+
+      ctx.beginPath();
+      ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.fill();
+
+      this.canvasHoverPoints.push({ x, y, label, value: val });
+    }
+  }
+
+  onCanvasMouseMove(event: MouseEvent): void {
+    if (!this.turboCanvasRef || this.canvasHoverPoints.length === 0) return;
+    const canvas = this.turboCanvasRef.nativeElement;
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    let nearest: { x: number; y: number; label: string; value: any } | null = null;
+    let minDistance = 28;
+
+    for (const pt of this.canvasHoverPoints) {
+      const dist = Math.hypot(pt.x - mouseX, pt.y - mouseY);
+      if (dist < minDistance) {
+        minDistance = dist;
+        nearest = pt;
+      }
+    }
+
+    if (nearest) {
+      this.setTooltip(nearest.label, nearest.value, nearest.x, nearest.y);
+    } else {
+      this.clearTooltip();
+    }
+  }
+
+  onCanvasClick(event: MouseEvent): void {
+    if (!this.turboCanvasRef || this.canvasHoverPoints.length === 0) return;
+    const canvas = this.turboCanvasRef.nativeElement;
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    for (const pt of this.canvasHoverPoints) {
+      if (Math.hypot(pt.x - mouseX, pt.y - mouseY) < 28) {
+        this.triggerClick(pt.label);
+        break;
+      }
+    }
+  }
 
   triggerClick(category: string): void {
     const clickEvent = this.events().find(e => e.event === 'click');
