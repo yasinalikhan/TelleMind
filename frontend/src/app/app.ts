@@ -16,8 +16,9 @@ import { TableComponent } from './shared/components/a2ui-table/table.component';
 import { KpiComponent } from './shared/components/a2ui-kpi/kpi.component';
 import { MapComponent } from './shared/components/a2ui-map/map.component';
 import { SemanticService, MetricDefinition } from './core/services/semantic.service';
+import { AutonomousService, TelcoAnomaly, TelcoActionOption, ActionExecutionRecord } from './core/services/autonomous.service';
 
-export type StudioTab = 'canvas' | 'visual_gallery' | 'google_maps' | 'link_analysis' | 'data_hub' | 'ai_copilot' | 'semantic_store';
+export type StudioTab = 'canvas' | 'visual_gallery' | 'google_maps' | 'link_analysis' | 'data_hub' | 'ai_copilot' | 'semantic_store' | 'autonomous_rca';
 
 export interface SqlSuggestion {
   label: string;
@@ -50,6 +51,7 @@ export class App implements OnInit {
   private readonly actionService = inject(A2UIActionService);
   private readonly datasetService = inject(DatasetService);
   protected readonly semanticService = inject(SemanticService);
+  protected readonly autonomousService = inject(AutonomousService);
 
   @ViewChild('sqlTextarea') sqlTextareaRef?: ElementRef<HTMLTextAreaElement>;
 
@@ -68,6 +70,20 @@ export class App implements OnInit {
 
   // Active Functionality Studio Tab
   activeStudioTab = signal<StudioTab>('canvas');
+
+  // Autonomous NOC & RCA Signals
+  selectedAnomalyFilter = signal<'ALL' | 'CRITICAL' | 'WARNING'>('ALL');
+
+  criticalAnomalyCount = computed(() => {
+    return this.autonomousService.anomalies().filter(a => a.severity === 'CRITICAL' && a.status === 'OPEN').length;
+  });
+
+  filteredAnomalies = computed(() => {
+    const f = this.selectedAnomalyFilter();
+    const list = this.autonomousService.anomalies();
+    if (f === 'ALL') return list;
+    return list.filter(a => a.severity === f);
+  });
 
   // Presentation & Fullscreen Mode
   presentationMode = signal<boolean>(false);
@@ -272,6 +288,8 @@ export class App implements OnInit {
       this.dashboardService.restoreActiveWorkspace();
       this.semanticService.fetchMetrics().subscribe();
       this.semanticService.fetchDimensions().subscribe();
+      this.autonomousService.fetchAnomalies().subscribe();
+      this.autonomousService.fetchActionHistory().subscribe();
     }
   }
 
@@ -300,6 +318,37 @@ export class App implements OnInit {
     this.onSubmitQuery();
   }
 
+  triggerAnomalyScan(): void {
+    this.autonomousService.triggerScan().subscribe({
+      next: (anoms) => {
+        this.showToast('info', `Autonomous scan completed: ${anoms.length} anomalies analyzed.`);
+      },
+      error: (err) => {
+        this.showToast('error', `Scan failed: ${err.message || 'Error'}`);
+      }
+    });
+  }
+
+  selectAnomaly(anomaly: TelcoAnomaly): void {
+    this.autonomousService.selectedAnomaly.set(anomaly);
+  }
+
+  executeAutonomousAction(anomaly: TelcoAnomaly, action: TelcoActionOption): void {
+    this.autonomousService.executeAction(
+      anomaly.id,
+      action.actionType,
+      action.label,
+      action.payload
+    ).subscribe({
+      next: (rec) => {
+        this.showToast('success', `Action executed: ${rec.actionLabel} (${rec.executionId})`);
+      },
+      error: (err) => {
+        this.showToast('error', `Action execution failed: ${err.message || 'Error'}`);
+      }
+    });
+  }
+
   getComponentType(type: string) {
     return this.registry.getComponentType(type);
   }
@@ -320,6 +369,10 @@ export class App implements OnInit {
         this.loadDatasets();
         this.queryService.loadQueries();
         this.dashboardService.restoreActiveWorkspace();
+        this.semanticService.fetchMetrics().subscribe();
+        this.semanticService.fetchDimensions().subscribe();
+        this.autonomousService.fetchAnomalies().subscribe();
+        this.autonomousService.fetchActionHistory().subscribe();
       }
     }, 600);
   }
@@ -864,6 +917,10 @@ export class App implements OnInit {
     this.dashboardService.loadDashboards();
     this.loadDatasets();
     this.queryService.loadQueries();
+    this.semanticService.fetchMetrics().subscribe();
+    this.semanticService.fetchDimensions().subscribe();
+    this.autonomousService.fetchAnomalies().subscribe();
+    this.autonomousService.fetchActionHistory().subscribe();
     this.runQuery(this.sqlEditorValue());
   }
 

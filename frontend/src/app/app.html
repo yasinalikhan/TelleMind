@@ -195,6 +195,23 @@
             </svg>
             <span>Semantic Store</span>
           </button>
+
+          <!-- 8. Autonomous NOC & RCA -->
+          <button (click)="setStudioTab('autonomous_rca')"
+                  [class.bg-rose-600]="activeStudioTab() === 'autonomous_rca'"
+                  [class.text-white]="activeStudioTab() === 'autonomous_rca'"
+                  [class.text-slate-400]="activeStudioTab() !== 'autonomous_rca'"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all hover:text-white relative">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 text-rose-400">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+            </svg>
+            <span>Autonomous NOC</span>
+            @if (criticalAnomalyCount() > 0) {
+              <span class="px-1.5 py-0.2 bg-rose-500 text-white text-[10px] font-black rounded-full shadow-sm animate-pulse">
+                {{ criticalAnomalyCount() }}
+              </span>
+            }
+          </button>
         </nav>
       </div>
 
@@ -374,6 +391,15 @@
               <button (click)="setStudioTab('semantic_store')" [class.bg-indigo-600/20]="activeStudioTab() === 'semantic_store'" [class.text-indigo-300]="activeStudioTab() === 'semantic_store'"
                       class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all font-semibold">
                 <span>🏛️</span><span>Semantic Store</span>
+              </button>
+              <button (click)="setStudioTab('autonomous_rca')" [class.bg-rose-600/20]="activeStudioTab() === 'autonomous_rca'" [class.text-rose-300]="activeStudioTab() === 'autonomous_rca'"
+                      class="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all font-semibold">
+                <div class="flex items-center gap-2">
+                  <span>🚨</span><span>Autonomous NOC</span>
+                </div>
+                @if (criticalAnomalyCount() > 0) {
+                  <span class="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full animate-pulse">{{ criticalAnomalyCount() }}</span>
+                }
               </button>
             </div>
           </div>
@@ -1258,6 +1284,358 @@
                   <span class="text-[10px] font-bold text-slate-500 uppercase block">Hardware Vectorization</span>
                   <span class="text-base font-extrabold text-emerald-400 font-mono">SIMD L1/L2</span>
                 </div>
+              </div>
+            </div>
+
+          </div>
+        }
+
+        <!-- TAB 8: AUTONOMOUS NOC & ROOT CAUSE ANALYSIS (RCA) -->
+        @if (activeStudioTab() === 'autonomous_rca') {
+          <div class="space-y-6 animate-in fade-in duration-300">
+
+            <!-- Banner Header -->
+            <div class="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-rose-950/40 to-slate-900 border border-rose-500/20 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="px-2.5 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-300 text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="h-1.5 w-1.5 rounded-full bg-rose-500 animate-ping"></span>
+                    Phase 3 Autonomous AI
+                  </span>
+                  <span class="text-xs text-slate-400 font-semibold">• Closed-Loop Operations</span>
+                </div>
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                  <span>🚨 Autonomous NOC & Self-Healing Telco Operations</span>
+                </h3>
+                <p class="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                  Continuous telemetry scanner with automated Root Cause Analysis (RCA) and direct operational intervention. Outclasses passive BI tools like Power BI & SuperSet by bridging decision intelligence with actual closed-loop network execution.
+                </p>
+              </div>
+
+              <!-- Header Action Controls -->
+              <div class="flex flex-wrap items-center gap-2">
+                <button (click)="triggerAnomalyScan()"
+                        [disabled]="autonomousService.isScanning()"
+                        class="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-xs font-bold text-white shadow-lg shadow-rose-900/30 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
+                       class="w-4 h-4" [class.animate-spin]="autonomousService.isScanning()">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                  </svg>
+                  <span>{{ autonomousService.isScanning() ? 'Scanning Network...' : 'Run Autonomous Scan' }}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- KPI Metric Strip -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div class="p-4 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between">
+                <div>
+                  <span class="text-[10px] font-bold text-slate-500 uppercase block tracking-wider">Critical Incidents</span>
+                  <span class="text-2xl font-black text-rose-400 font-mono">{{ criticalAnomalyCount() }}</span>
+                </div>
+                <div class="h-10 w-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 text-lg">
+                  🔥
+                </div>
+              </div>
+
+              <div class="p-4 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between">
+                <div>
+                  <span class="text-[10px] font-bold text-slate-500 uppercase block tracking-wider">Total Anomalies</span>
+                  <span class="text-2xl font-black text-amber-400 font-mono">{{ autonomousService.anomalies().length }}</span>
+                </div>
+                <div class="h-10 w-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-lg">
+                  ⚠️
+                </div>
+              </div>
+
+              <div class="p-4 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between">
+                <div>
+                  <span class="text-[10px] font-bold text-slate-500 uppercase block tracking-wider">Actions Dispatched</span>
+                  <span class="text-2xl font-black text-cyan-400 font-mono">{{ autonomousService.actionHistory().length }}</span>
+                </div>
+                <div class="h-10 w-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 text-lg">
+                  ⚡
+                </div>
+              </div>
+
+              <div class="p-4 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between">
+                <div>
+                  <span class="text-[10px] font-bold text-slate-500 uppercase block tracking-wider">Loop Status</span>
+                  <span class="text-2xl font-black text-emerald-400 font-mono">Autonomous</span>
+                </div>
+                <div class="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-lg">
+                  🛡️
+                </div>
+              </div>
+            </div>
+
+            <!-- Master-Detail Section: Incident Stream & Deep RCA -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+              <!-- Left Column: Anomalies & Incident Stream (5 Cols) -->
+              <div class="lg:col-span-5 space-y-3">
+                <div class="flex items-center justify-between pb-1">
+                  <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <span>Active Telemetry Anomalies</span>
+                    <span class="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] font-mono text-slate-300">
+                      {{ filteredAnomalies().length }}
+                    </span>
+                  </h4>
+
+                  <!-- Filter Pills -->
+                  <div class="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-white/5 text-[10px] font-bold">
+                    <button (click)="selectedAnomalyFilter.set('ALL')"
+                            [class.bg-slate-800]="selectedAnomalyFilter() === 'ALL'"
+                            [class.text-white]="selectedAnomalyFilter() === 'ALL'"
+                            class="px-2 py-0.5 rounded text-slate-400 hover:text-white transition-colors">All</button>
+                    <button (click)="selectedAnomalyFilter.set('CRITICAL')"
+                            [class.bg-rose-900/60]="selectedAnomalyFilter() === 'CRITICAL'"
+                            [class.text-rose-300]="selectedAnomalyFilter() === 'CRITICAL'"
+                            class="px-2 py-0.5 rounded text-slate-400 hover:text-white transition-colors">Critical</button>
+                    <button (click)="selectedAnomalyFilter.set('WARNING')"
+                            [class.bg-amber-900/60]="selectedAnomalyFilter() === 'WARNING'"
+                            [class.text-amber-300]="selectedAnomalyFilter() === 'WARNING'"
+                            class="px-2 py-0.5 rounded text-slate-400 hover:text-white transition-colors">Warning</button>
+                  </div>
+                </div>
+
+                <!-- Anomaly Cards List -->
+                <div class="space-y-3 max-h-[620px] overflow-y-auto pr-1">
+                  @for (anom of filteredAnomalies(); track anom.id) {
+                    <div (click)="selectAnomaly(anom)"
+                         class="p-4 rounded-xl border transition-all cursor-pointer relative group"
+                         [class.bg-rose-950/20]="anom.severity === 'CRITICAL' && autonomousService.selectedAnomaly()?.id === anom.id"
+                         [class.bg-slate-900/40]="autonomousService.selectedAnomaly()?.id !== anom.id"
+                         [class.border-rose-500]="autonomousService.selectedAnomaly()?.id === anom.id && anom.severity === 'CRITICAL'"
+                         [class.border-indigo-500]="autonomousService.selectedAnomaly()?.id === anom.id && anom.severity !== 'CRITICAL'"
+                         [class.border-white/5]="autonomousService.selectedAnomaly()?.id !== anom.id"
+                         [class.hover:border-white/20]="autonomousService.selectedAnomaly()?.id !== anom.id">
+
+                      <div class="flex items-center justify-between gap-2 mb-2">
+                        <div class="flex items-center gap-2">
+                          <span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wide"
+                                [class.bg-rose-500/20]="anom.severity === 'CRITICAL'"
+                                [class.text-rose-400]="anom.severity === 'CRITICAL'"
+                                [class.border]="anom.severity === 'CRITICAL'"
+                                [class.border-rose-500/30]="anom.severity === 'CRITICAL'"
+                                [class.bg-amber-500/20]="anom.severity === 'WARNING'"
+                                [class.text-amber-400]="anom.severity === 'WARNING'">
+                            {{ anom.severity }}
+                          </span>
+                          <span class="text-[10px] font-mono text-slate-500">{{ anom.id }}</span>
+                        </div>
+
+                        <span class="px-2 py-0.5 rounded text-[9px] font-bold"
+                              [class.bg-emerald-500/20]="anom.status === 'ACTION_TAKEN'"
+                              [class.text-emerald-300]="anom.status === 'ACTION_TAKEN'"
+                              [class.bg-slate-800]="anom.status === 'OPEN'"
+                              [class.text-slate-400]="anom.status === 'OPEN'">
+                          {{ anom.status === 'ACTION_TAKEN' ? '✓ ACTION TAKEN' : 'OPEN' }}
+                        </span>
+                      </div>
+
+                      <h5 class="text-xs font-bold text-white group-hover:text-indigo-300 transition-colors mb-1.5">
+                        {{ anom.title }}
+                      </h5>
+
+                      <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-400 mb-3 font-mono">
+                        <div>
+                          <span class="text-slate-500 block text-[9px] uppercase">Region / Tower</span>
+                          <span class="text-slate-300">{{ anom.region }} ({{ anom.tower }})</span>
+                        </div>
+                        <div>
+                          <span class="text-slate-500 block text-[9px] uppercase">Deviation</span>
+                          <span [class.text-rose-400]="anom.deviationPercent < 0"
+                                [class.text-amber-400]="anom.deviationPercent >= 0"
+                                class="font-bold">
+                            {{ anom.deviationPercent > 0 ? '+' : '' }}{{ anom.deviationPercent | number:'1.1-1' }}%
+                          </span>
+                        </div>
+                      </div>
+
+                      <div class="flex items-center justify-between text-[10px] text-slate-500 border-t border-white/5 pt-2">
+                        <span>Baseline: {{ anom.baselineValue | number:'1.0-2' }} ➔ Current: {{ anom.anomalyValue | number:'1.0-2' }}</span>
+                        <span>{{ anom.recommendedActions.length }} Actions</span>
+                      </div>
+                    </div>
+                  } @empty {
+                    <div class="p-8 text-center rounded-xl bg-slate-900/30 border border-white/5 text-slate-500 text-xs">
+                      No active anomalies in current view. Click "Run Autonomous Scan" to trigger evaluation.
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <!-- Right Column: Automated RCA & Closed-Loop Action Panel (7 Cols) -->
+              <div class="lg:col-span-7 space-y-5">
+                @if (autonomousService.selectedAnomaly(); as selected) {
+                  <div class="p-6 rounded-2xl bg-slate-900/70 border border-white/10 shadow-2xl space-y-6">
+
+                    <!-- Header -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
+                      <div>
+                        <div class="flex items-center gap-2 mb-1">
+                          <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase"
+                                [class.bg-rose-500/20]="selected.severity === 'CRITICAL'"
+                                [class.text-rose-400]="selected.severity === 'CRITICAL'"
+                                [class.border]="selected.severity === 'CRITICAL'"
+                                [class.border-rose-500/30]="selected.severity === 'CRITICAL'"
+                                [class.bg-amber-500/20]="selected.severity === 'WARNING'"
+                                [class.text-amber-400]="selected.severity === 'WARNING'">
+                            {{ selected.severity }} SEVERITY
+                          </span>
+                          <span class="text-xs text-slate-400 font-mono">{{ selected.metricId }}</span>
+                        </div>
+                        <h4 class="text-lg font-bold text-white">{{ selected.title }}</h4>
+                        <p class="text-xs text-slate-400 mt-0.5">
+                          Target: <strong class="text-slate-200">{{ selected.region }}</strong> (Tower: <code class="text-cyan-300 font-mono">{{ selected.tower }}</code>) • Detected: {{ selected.detectedAt }}
+                        </p>
+                      </div>
+
+                      <div class="text-right">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase block">Impact Deviation</span>
+                        <span class="text-xl font-extrabold font-mono"
+                              [class.text-rose-400]="selected.deviationPercent < 0"
+                              [class.text-amber-400]="selected.deviationPercent >= 0">
+                          {{ selected.deviationPercent > 0 ? '+' : '' }}{{ selected.deviationPercent | number:'1.1-1' }}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <!-- AI Root Cause Analysis (RCA) Box -->
+                    <div class="p-5 rounded-xl bg-gradient-to-br from-indigo-950/40 via-slate-900/80 to-slate-950 border border-indigo-500/30 shadow-inner">
+                      <div class="flex items-center gap-2 mb-3">
+                        <span class="text-lg">🧠</span>
+                        <h5 class="text-xs font-bold uppercase tracking-wider text-indigo-300">
+                          Automated Root Cause Analysis (RCA)
+                        </h5>
+                      </div>
+                      <p class="text-xs text-slate-200 leading-relaxed font-sans mb-4">
+                        {{ selected.rootCauseAnalysis }}
+                      </p>
+
+                      <!-- Evidence Points -->
+                      <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Corroborated Telemetry Evidence:</span>
+                        <div class="space-y-1.5">
+                          @for (evidence of selected.evidencePoints; track evidence) {
+                            <div class="flex items-start gap-2 text-[11px] text-slate-300 bg-black/30 p-2 rounded-lg border border-white/5">
+                              <span class="text-emerald-400 mt-0.5 font-bold">✓</span>
+                              <span class="leading-relaxed">{{ evidence }}</span>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Recommended Closed-Loop Actions -->
+                    <div>
+                      <div class="flex items-center justify-between mb-3">
+                        <div>
+                          <h5 class="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
+                            <span>⚡ Closed-Loop Self-Healing Actions</span>
+                          </h5>
+                          <p class="text-[11px] text-slate-400 mt-0.5">Select an automated action to dispatch immediately into operational network systems.</p>
+                        </div>
+                        @if (autonomousService.isExecuting()) {
+                          <span class="text-xs font-bold text-cyan-400 animate-pulse flex items-center gap-1">
+                            <span class="h-2 w-2 rounded-full bg-cyan-400 animate-ping"></span>
+                            Dispatching...
+                          </span>
+                        }
+                      </div>
+
+                      <div class="space-y-3">
+                        @for (action of selected.recommendedActions; track action.actionId) {
+                          <div class="p-4 rounded-xl bg-slate-950/60 border border-white/10 hover:border-white/20 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div class="flex-1">
+                              <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-bold text-white">{{ action.label }}</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{{ action.actionType }}</span>
+                              </div>
+                              <p class="text-xs text-slate-400 leading-relaxed">{{ action.description }}</p>
+                            </div>
+
+                            <button (click)="executeAutonomousAction(selected, action)"
+                                    [disabled]="autonomousService.isExecuting() || selected.status === 'ACTION_TAKEN'"
+                                    class="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                                    [class.bg-rose-600]="action.buttonStyle === 'danger'"
+                                    [class.hover:bg-rose-500]="action.buttonStyle === 'danger'"
+                                    [class.text-white]="true"
+                                    [class.bg-amber-600]="action.buttonStyle === 'warning'"
+                                    [class.hover:bg-amber-500]="action.buttonStyle === 'warning'"
+                                    [class.bg-indigo-600]="action.buttonStyle === 'primary' || !action.buttonStyle"
+                                    [class.hover:bg-indigo-500]="action.buttonStyle === 'primary' || !action.buttonStyle">
+                              {{ selected.status === 'ACTION_TAKEN' ? '✓ Action Executed' : 'Execute Now ➔' }}
+                            </button>
+                          </div>
+                        }
+                      </div>
+                    </div>
+
+                  </div>
+                } @else {
+                  <div class="p-12 text-center rounded-2xl bg-slate-900/30 border border-white/5 text-slate-500 text-xs">
+                    Select an anomaly on the left to view deep AI Root Cause Analysis and trigger closed-loop operational actions.
+                  </div>
+                }
+              </div>
+
+            </div>
+
+            <!-- Audit Trail: Dispatched Action History -->
+            <div class="p-6 rounded-2xl bg-slate-900/50 border border-white/10 shadow-xl space-y-4">
+              <div class="flex items-center justify-between pb-2 border-b border-white/5">
+                <div>
+                  <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                    <span>📋 Dispatched Action History & Closed-Loop Audit Trail</span>
+                  </h4>
+                  <p class="text-xs text-slate-400 mt-0.5">
+                    Immutable verifiable log of operational interventions dispatched to NOC ticketing, CRM campaign engines, and Core QoS controllers.
+                  </p>
+                </div>
+                <span class="text-xs font-mono text-slate-500">{{ autonomousService.actionHistory().length }} Logged Events</span>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                  <thead class="text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-950/60 border-b border-white/5">
+                    <tr>
+                      <th class="py-2.5 px-3">Execution ID</th>
+                      <th class="py-2.5 px-3">Action Label</th>
+                      <th class="py-2.5 px-3">Target</th>
+                      <th class="py-2.5 px-3">Status</th>
+                      <th class="py-2.5 px-3">Triggered By</th>
+                      <th class="py-2.5 px-3">Timestamp</th>
+                      <th class="py-2.5 px-3">Result Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-white/5 font-sans">
+                    @for (rec of autonomousService.actionHistory(); track rec.executionId) {
+                      <tr class="hover:bg-white/[0.02] transition-colors">
+                        <td class="py-3 px-3 font-mono text-[11px] text-cyan-300">{{ rec.executionId }}</td>
+                        <td class="py-3 px-3 font-semibold text-white">{{ rec.actionLabel }}</td>
+                        <td class="py-3 px-3 text-slate-400 font-mono">{{ rec.target }}</td>
+                        <td class="py-3 px-3">
+                          <span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            {{ rec.status }}
+                          </span>
+                        </td>
+                        <td class="py-3 px-3 text-slate-400 text-[11px]">{{ rec.triggeredBy }}</td>
+                        <td class="py-3 px-3 text-slate-500 text-[10px] font-mono whitespace-nowrap">{{ rec.timestamp }}</td>
+                        <td class="py-3 px-3 text-slate-300 max-w-xs truncate" [title]="rec.resultSummary">
+                          {{ rec.resultSummary }}
+                        </td>
+                      </tr>
+                    } @empty {
+                      <tr>
+                        <td colspan="7" class="py-6 text-center text-slate-500 text-xs">
+                          No actions dispatched yet in this tenant session.
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
               </div>
             </div>
 
